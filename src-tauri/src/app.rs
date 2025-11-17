@@ -1,5 +1,6 @@
 use crate::commands;
 use crate::md::MarkdownDocument;
+use crate::menu;
 use crate::state::AppState;
 use tauri::{Emitter, Manager};
 
@@ -16,9 +17,19 @@ pub fn run(initial_file: Option<String>) {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .setup(move |app| {
+            let app_handle = app.handle().clone();
+            
+            // Build and set the menu
+            let menu = menu::build_menu(&app_handle)
+                .expect("Failed to build menu");
+            app.set_menu(menu)
+                .expect("Failed to set menu");
+            
+            // Setup menu event handlers
+            menu::setup_menu_handlers(&app_handle);
+            
             // Load initial file if provided
             if let Some(file_path) = initial_file {
-                let app_handle = app.handle().clone();
                 let state = app.state::<AppState>();
                 
                 // Load the document

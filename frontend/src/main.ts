@@ -165,6 +165,44 @@ async function initialize() {
         alert(`Failed to load document: ${event.payload}`);
     });
     
+    // Listen for menu events
+    await listen('menu-open', () => {
+        console.log('Menu: Open');
+        openFile();
+    });
+    
+    await listen('menu-copy', () => {
+        console.log('Menu: Copy');
+        document.execCommand('copy');
+    });
+    
+    await listen('menu-search', () => {
+        console.log('Menu: Search');
+        const searchBar = document.getElementById('search-bar')!;
+        searchBar.style.display = 'flex';
+        (document.getElementById('search-input') as HTMLInputElement).focus();
+    });
+    
+    await listen('menu-zoom-in', () => {
+        console.log('Menu: Zoom In');
+        setZoom(Math.min(currentZoom + 0.1, 3.0));
+    });
+    
+    await listen('menu-zoom-out', () => {
+        console.log('Menu: Zoom Out');
+        setZoom(Math.max(currentZoom - 0.1, 0.5));
+    });
+    
+    await listen('menu-zoom-reset', () => {
+        console.log('Menu: Reset Zoom');
+        setZoom(1.0);
+    });
+    
+    await listen('menu-about', () => {
+        console.log('Menu: About');
+        alert('mdview v0.1.0\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
+    });
+    
     // Get initial zoom level
     try {
         currentZoom = await invoke<number>('get_zoom_factor');

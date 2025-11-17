@@ -5,6 +5,7 @@ use clap::Parser;
 mod app;
 mod commands;
 mod md;
+mod menu;
 mod state;
 
 /// A lightweight cross-platform Markdown viewer
