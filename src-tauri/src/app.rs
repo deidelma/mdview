@@ -13,6 +13,7 @@ use tauri::{Emitter, Manager};
 /// * `initial_file` - Optional path to a Markdown file to load at startup
 pub fn run(initial_file: Option<String>) {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .setup(move |app| {
             // Load initial file if provided

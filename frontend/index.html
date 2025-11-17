@@ -1,1 +1,77 @@
-<!doctype html><html><body><div id='app'></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mdview</title>
+</head>
+<body>
+    <div id="app">
+        <!-- Toolbar -->
+        <div id="toolbar">
+            <button id="btn-open" class="toolbar-btn" title="Open file">
+                <span>📂</span>
+                <span>Open</span>
+            </button>
+            <button id="btn-reload" class="toolbar-btn" title="Reload file" disabled>
+                <span>🔄</span>
+                <span>Reload</span>
+            </button>
+            <div class="toolbar-separator"></div>
+            <button id="btn-search" class="toolbar-btn" title="Search">
+                <span>🔍</span>
+                <span>Search</span>
+            </button>
+            <div class="toolbar-separator"></div>
+            <button id="btn-zoom-out" class="toolbar-btn" title="Zoom out">
+                <span>➖</span>
+            </button>
+            <span id="zoom-level">100%</span>
+            <button id="btn-zoom-in" class="toolbar-btn" title="Zoom in">
+                <span>➕</span>
+            </button>
+            <button id="btn-zoom-reset" class="toolbar-btn" title="Reset zoom">
+                <span>↺</span>
+            </button>
+        </div>
+
+        <!-- Main Layout -->
+        <div id="main-layout">
+            <!-- Sidebar for TOC -->
+            <div id="sidebar">
+                <div id="sidebar-header">
+                    <h3>Table of Contents</h3>
+                    <button id="btn-toggle-sidebar" title="Toggle sidebar">◀</button>
+                </div>
+                <div id="toc-container">
+                    <div id="toc-empty" class="toc-empty">No headings found</div>
+                    <nav id="toc-nav"></nav>
+                </div>
+            </div>
+
+            <!-- Resizer -->
+            <div id="resizer"></div>
+
+            <!-- Content Area -->
+            <div id="content-area">
+                <div id="search-bar" class="search-bar" style="display: none;">
+                    <input type="text" id="search-input" placeholder="Search...">
+                    <button id="btn-search-prev" title="Previous match">▲</button>
+                    <button id="btn-search-next" title="Next match">▼</button>
+                    <span id="search-results"></span>
+                    <button id="btn-search-close" title="Close search">✕</button>
+                </div>
+                <div id="markdown-container" class="markdown-content">
+                    <div class="welcome-message">
+                        <h1>Welcome to mdview</h1>
+                        <p>A lightweight Markdown viewer</p>
+                        <p class="hint">Open a file to get started</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
