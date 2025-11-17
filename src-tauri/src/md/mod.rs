@@ -37,6 +37,34 @@ impl MarkdownDocument {
             toc: Vec::new(),
         }
     }
+
+    /// Loads and parses a Markdown file from the filesystem.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The file path to load
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<MarkdownDocument, loader::MdLoadError>` - The parsed document or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mdview::md::MarkdownDocument;
+    /// 
+    /// let doc = MarkdownDocument::from_file("README.md")?;
+    /// println!("Loaded: {}", doc.path);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, loader::MdLoadError> {
+        let path_str = path.as_ref().display().to_string();
+        let raw_content = loader::load_markdown_file(&path)?;
+        let html_content = parser::markdown_to_html(&raw_content);
+        let toc = toc::extract_toc(&raw_content);
+        
+        Ok(Self::new(path_str, raw_content, html_content, toc))
+    }
 }
 
 /// Represents a single item in the table of contents.
