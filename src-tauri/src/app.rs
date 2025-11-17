@@ -62,6 +62,7 @@ pub fn run(initial_file: Option<String>) {
             commands::reload_document,
             commands::set_zoom_factor,
             commands::get_zoom_factor,
+            commands::get_current_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

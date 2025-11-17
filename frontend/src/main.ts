@@ -6,6 +6,11 @@ import { initializeToc } from './ui/toc';
 import { initializeSearch } from './ui/search';
 import './styles/app.css';
 
+// Immediate console log to verify JavaScript is running
+console.log('=== MDVIEW MAIN.TS LOADED ===');
+console.log('Window object:', typeof window);
+console.log('Tauri available:', typeof (window as any).__TAURI_INTERNALS__);
+
 interface MarkdownDocument {
     path: string;
     raw_content: string;
@@ -45,6 +50,14 @@ function renderDocument(doc: MarkdownDocument) {
     markdownContainer.innerHTML = doc.html_content;
     markdownContainer.classList.add('markdown-content');
     
+    // Apply current zoom level
+    if (currentZoom !== 1.0) {
+        const contentArea = document.getElementById('content-area')!;
+        const containerWidth = contentArea.offsetWidth / currentZoom;
+        markdownContainer.style.transform = `scale(${currentZoom})`;
+        markdownContainer.style.width = `${containerWidth}px`;
+    }
+    
     // Render TOC
     if (doc.toc.length > 0) {
         tocNav.innerHTML = doc.toc.map(item => `
@@ -79,8 +92,14 @@ async function openFile() {
             }]
         });
         
+        console.log('File dialog returned:', selected, 'Type:', typeof selected);
+        
         if (selected) {
-            const doc = await invoke<MarkdownDocument>('open_document', { path: selected });
+            // The dialog returns a string path directly
+            const path = typeof selected === 'string' ? selected : (selected as any).path || String(selected);
+            console.log('Opening file:', path);
+            const doc = await invoke<MarkdownDocument>('open_document', { path });
+            console.log('Document loaded:', doc.path);
             renderDocument(doc);
         }
     } catch (error) {
@@ -105,16 +124,104 @@ async function reloadDocument() {
 }
 
 /**
+ * Copies selected text to clipboard.
+ */
+function copySelection() {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+        try {
+            // Try modern Clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(selection.toString()).then(() => {
+                    showCopyFeedback();
+                }).catch(() => {
+                    // Fallback to execCommand
+                    document.execCommand('copy');
+                    showCopyFeedback();
+                });
+            } else {
+                // Use legacy execCommand
+                document.execCommand('copy');
+                showCopyFeedback();
+            }
+        } catch (error) {
+            console.error('Failed to copy:', error);
+        }
+    }
+}
+
+/**
+ * Shows visual feedback when text is copied.
+ */
+function showCopyFeedback() {
+    const feedback = document.createElement('div');
+    feedback.textContent = 'Copied!';
+    feedback.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 10000;
+        pointer-events: none;
+        animation: fadeOut 1s ease-out forwards;
+    `;
+    
+    // Add fade out animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(feedback);
+    
+    setTimeout(() => {
+        document.body.removeChild(feedback);
+        document.head.removeChild(style);
+    }, 1000);
+}
+
+/**
  * Sets the zoom level.
  */
 async function setZoom(factor: number) {
     try {
+        // Clamp factor to valid range
+        factor = Math.max(0.5, Math.min(3.0, factor));
+        
         const newZoom = await invoke<number>('set_zoom_factor', { factor });
         currentZoom = newZoom;
         
         // Apply zoom transform
-        markdownContainer.style.transform = `scale(${newZoom})`;
-        markdownContainer.style.transformOrigin = 'top left';
+        const contentArea = document.getElementById('content-area')!;
+        const container = markdownContainer;
+        
+        // Get scroll position before zoom
+        const scrollTop = container.scrollTop;
+        const scrollRatio = container.scrollHeight > 0 ? scrollTop / container.scrollHeight : 0;
+        
+        // Apply transform
+        container.style.transform = `scale(${newZoom})`;
+        
+        // Adjust container width to account for scale
+        // This ensures proper scrolling behavior
+        const containerWidth = contentArea.offsetWidth / newZoom;
+        container.style.width = `${containerWidth}px`;
+        
+        // Try to maintain scroll position ratio
+        setTimeout(() => {
+            if (container.scrollHeight > 0) {
+                container.scrollTop = container.scrollHeight * scrollRatio;
+            }
+        }, 50);
         
         // Update zoom display
         zoomLevel.textContent = `${Math.round(newZoom * 100)}%`;
@@ -137,22 +244,7 @@ async function initialize() {
     initializeToc();
     initializeSearch();
     
-    // Set up toolbar button handlers
-    btnOpen.addEventListener('click', openFile);
-    btnReload.addEventListener('click', reloadDocument);
-    btnSearch.addEventListener('click', () => {
-        const searchBar = document.getElementById('search-bar')!;
-        searchBar.style.display = searchBar.style.display === 'none' ? 'flex' : 'none';
-        if (searchBar.style.display === 'flex') {
-            (document.getElementById('search-input') as HTMLInputElement).focus();
-        }
-    });
-    
-    // Zoom controls
-    btnZoomIn.addEventListener('click', () => setZoom(Math.min(currentZoom + 0.1, 3.0)));
-    btnZoomOut.addEventListener('click', () => setZoom(Math.max(currentZoom - 0.1, 0.5)));
-    btnZoomReset.addEventListener('click', () => setZoom(1.0));
-    
+    // Set up event listeners FIRST, before any other setup
     // Listen for document loaded from CLI
     await listen<MarkdownDocument>('document-loaded', (event) => {
         console.log('Document loaded from CLI:', event.payload.path);
@@ -173,7 +265,7 @@ async function initialize() {
     
     await listen('menu-copy', () => {
         console.log('Menu: Copy');
-        document.execCommand('copy');
+        copySelection();
     });
     
     await listen('menu-search', () => {
@@ -203,6 +295,65 @@ async function initialize() {
         alert('mdview v0.1.0\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
     });
     
+    console.log('Event listeners registered');
+    
+    // Set up toolbar button handlers
+    btnOpen.addEventListener('click', openFile);
+    btnReload.addEventListener('click', reloadDocument);
+    btnSearch.addEventListener('click', () => {
+        const searchBar = document.getElementById('search-bar')!;
+        searchBar.style.display = searchBar.style.display === 'none' ? 'flex' : 'none';
+        if (searchBar.style.display === 'flex') {
+            (document.getElementById('search-input') as HTMLInputElement).focus();
+        }
+    });
+    
+    // Zoom controls
+    btnZoomIn.addEventListener('click', () => setZoom(Math.min(currentZoom + 0.1, 3.0)));
+    btnZoomOut.addEventListener('click', () => setZoom(Math.max(currentZoom - 0.1, 0.5)));
+    btnZoomReset.addEventListener('click', () => setZoom(1.0));
+    
+    // Global keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd+F for search
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+            e.preventDefault();
+            const searchBar = document.getElementById('search-bar')!;
+            searchBar.style.display = 'flex';
+            (document.getElementById('search-input') as HTMLInputElement).focus();
+        }
+        
+        // Ctrl/Cmd+O for open
+        if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+            e.preventDefault();
+            openFile();
+        }
+        
+        // Ctrl/Cmd+R for reload
+        if ((e.metaKey || e.ctrlKey) && e.key === 'r' && currentDocument) {
+            e.preventDefault();
+            reloadDocument();
+        }
+        
+        // Ctrl/Cmd+Plus for zoom in
+        if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
+            e.preventDefault();
+            setZoom(Math.min(currentZoom + 0.1, 3.0));
+        }
+        
+        // Ctrl/Cmd+Minus for zoom out
+        if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+            e.preventDefault();
+            setZoom(Math.max(currentZoom - 0.1, 0.5));
+        }
+        
+        // Ctrl/Cmd+0 for reset zoom
+        if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+            e.preventDefault();
+            setZoom(1.0);
+        }
+    });
+    
     // Get initial zoom level
     try {
         currentZoom = await invoke<number>('get_zoom_factor');
@@ -211,7 +362,20 @@ async function initialize() {
         console.error('Failed to get initial zoom:', error);
     }
     
-    console.log('mdview initialized');
+    // Check if a document was already loaded (from CLI argument)
+    try {
+        const doc = await invoke<MarkdownDocument | null>('get_current_document');
+        if (doc) {
+            console.log('Found pre-loaded document:', doc.path);
+            renderDocument(doc);
+        } else {
+            console.log('No document pre-loaded');
+        }
+    } catch (error) {
+        console.error('Failed to check for initial document:', error);
+    }
+    
+    console.log('mdview initialized, waiting for events...');
 }
 
 // Start the application

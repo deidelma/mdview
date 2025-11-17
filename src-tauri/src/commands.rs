@@ -118,6 +118,23 @@ pub async fn get_zoom_factor(state: State<'_, AppState>) -> Result<f64, CommandE
     Ok(*zoom)
 }
 
+/// Gets the currently loaded document if any.
+/// 
+/// # Arguments
+/// 
+/// * `state` - Application state
+/// 
+/// # Returns
+/// 
+/// * `Result<Option<MarkdownDocument>, CommandError>` - The current document or None
+#[tauri::command]
+pub async fn get_current_document(
+    state: State<'_, AppState>,
+) -> Result<Option<MarkdownDocument>, CommandError> {
+    let current_doc = state.current_document.lock().unwrap();
+    Ok(current_doc.clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
