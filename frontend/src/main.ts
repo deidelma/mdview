@@ -84,7 +84,7 @@ function renderDocument(doc: MarkdownDocument) {
 }
 
 /**
- * Sets up link click handling to open external links in system browser.
+ * Sets up link click handling to open external links in system browser and local files in app.
  */
 function setupLinkHandling() {
     const links = markdownContainer.querySelectorAll('a');
@@ -103,6 +103,13 @@ function setupLinkHandling() {
             link.removeAttribute('href');
             link.style.cursor = 'pointer';
             link.classList.add('external-link');
+        }
+        // Check if it's a local file link (relative path to .md file)
+        else if (!href.startsWith('#') && (href.endsWith('.md') || href.includes('.md#'))) {
+            link.setAttribute('data-local-file', href);
+            link.removeAttribute('href');
+            link.style.cursor = 'pointer';
+            link.classList.add('local-link');
         }
     });
     
@@ -129,14 +136,46 @@ function setupLinkHandling() {
             return;
         }
         
+        // Handle local file links
+        const localFile = link.getAttribute('data-local-file');
+        
+        if (localFile) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            try {
+                await openLocalFile(localFile);
+            } catch (err: any) {
+                console.error('Failed to open local file:', err);
+                alert(`Failed to open file: ${err}`);
+            }
+            return;
+        }
+        
         // Handle internal anchor links
         const href = link.getAttribute('href');
+        
         if (href && href.startsWith('#')) {
             e.preventDefault();
             const targetId = href.substring(1);
-            const targetElement = markdownContainer.querySelector(`[id="${targetId}"]`);
+            let targetElement = markdownContainer.querySelector(`[id="${targetId}"]`);
             
             if (targetElement) {
+                // If target is an anchor element, check parent or next sibling for heading
+                if (targetElement.tagName === 'A' && targetElement.classList.contains('anchor')) {
+                    // Check if parent is a heading
+                    const parent = targetElement.parentElement;
+                    if (parent && /^H[1-6]$/.test(parent.tagName)) {
+                        targetElement = parent;
+                    } else {
+                        // Otherwise check next sibling
+                        const nextElement = targetElement.nextElementSibling;
+                        if (nextElement && /^H[1-6]$/.test(nextElement.tagName)) {
+                            targetElement = nextElement;
+                        }
+                    }
+                }
+                
                 targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 
                 // Update TOC active state
@@ -150,6 +189,66 @@ function setupLinkHandling() {
             }
         }
     });
+}
+
+/**
+ * Opens a local file referenced by a relative path in a markdown link.
+ * Resolves the path relative to the current document.
+ */
+async function openLocalFile(relativePath: string) {
+    if (!currentDocument) {
+        throw new Error('No document is currently loaded');
+    }
+    
+    // Extract the file path and anchor (if any)
+    const [filePath, anchor] = relativePath.split('#');
+    
+    // Get the directory of the current document
+    const currentPath = currentDocument.path;
+    const lastSlash = Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\'));
+    const currentDir = lastSlash >= 0 ? currentPath.substring(0, lastSlash + 1) : '';
+    
+    // Resolve the relative path
+    let absolutePath: string;
+    
+    // Handle different path formats
+    if (filePath.startsWith('/')) {
+        // Already absolute
+        absolutePath = filePath;
+    } else if (filePath.startsWith('./') || filePath.startsWith('../')) {
+        // Explicit relative path - resolve step by step
+        const parts = currentDir.split(/[\/\\]/).filter(p => p);
+        const relParts = filePath.split(/[\/\\]/).filter(p => p);
+        
+        for (const part of relParts) {
+            if (part === '..') {
+                parts.pop();
+            } else if (part !== '.') {
+                parts.push(part);
+            }
+        }
+        
+        absolutePath = '/' + parts.join('/');
+    } else {
+        // Simple filename or path - relative to current directory
+        // Ensure currentDir ends with slash
+        const dir = currentDir.endsWith('/') || currentDir.endsWith('\\') ? currentDir : currentDir + '/';
+        absolutePath = dir + filePath;
+    }
+    
+    // Load the document
+    const doc = await invoke<MarkdownDocument>('open_document', { path: absolutePath });
+    renderDocument(doc);
+    
+    // If there's an anchor, scroll to it after a brief delay
+    if (anchor) {
+        setTimeout(() => {
+            const targetElement = markdownContainer.querySelector(`[id="${anchor}"]`);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
 }
 
 /**

@@ -24,16 +24,20 @@ A lightweight cross-platform Markdown viewer built with Rust and Tauri.
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/deidelma/mdview/releases).
+
 ### From Source
 
 Requirements:
-- Rust (latest stable)
+- Rust 1.70+ (install via [rustup](https://rustup.rs/))
 - Node.js 18+
-- Platform-specific dependencies (see [Tauri prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites))
+- Platform-specific dependencies (see [docs/BUILDING.md](docs/BUILDING.md))
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mdview.git
+git clone https://github.com/deidelma/mdview.git
 cd mdview
 
 # Install frontend dependencies
@@ -41,12 +45,16 @@ cd frontend
 npm install
 cd ..
 
-# Run in development mode
-cargo tauri dev
+# Build release binary
+cd src-tauri
+cargo build --release
 
-# Build for production
-cargo tauri build
+# The binary will be at: target/release/mdview (or mdview.exe on Windows)
 ```
+
+For detailed build instructions, see [docs/BUILDING.md](docs/BUILDING.md).
+
+For packaging and distribution, see [docs/PACKAGING.md](docs/PACKAGING.md).
 
 ## Usage
 
@@ -54,8 +62,26 @@ cargo tauri build
 # Open a Markdown file
 mdview path/to/document.md
 
-# Or use File → Open from the menu
+# Or launch and use File → Open from the menu
+mdview
 ```
+
+### Keyboard Shortcuts
+
+- **Cmd/Ctrl+O**: Open file
+- **Cmd/Ctrl+R**: Reload current file
+- **Cmd/Ctrl+F**: Search
+- **Cmd/Ctrl++**: Zoom in
+- **Cmd/Ctrl+-**: Zoom out
+- **Cmd/Ctrl+0**: Reset zoom
+- **Cmd/Ctrl+Q**: Quit (macOS)
+
+### Features
+
+- Click any heading in the Table of Contents to jump to that section
+- Use the search bar to find text (supports next/previous navigation)
+- External links (http://, https://, www.) open in your system browser
+- Internal links (#anchors) scroll smoothly to the target section
 
 ## Development
 
