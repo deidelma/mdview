@@ -35,7 +35,9 @@
             "core:window:default",
             "core:webview:default",
             "dialog:default",
-            "dialog:allow-open"
+            "dialog:allow-open",
+            "shell:default",
+            "shell:allow-open"
           ]
         }
       ]

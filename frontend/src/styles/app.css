@@ -303,12 +303,24 @@ body {
 }
 
 .markdown-content a {
-    color: #0366d6;
+    color: #1976d2;
     text-decoration: none;
+    cursor: pointer;
 }
 
 .markdown-content a:hover {
     text-decoration: underline;
+}
+
+.markdown-content a.external-link::after {
+    content: " ↗";
+    font-size: 0.8em;
+    vertical-align: super;
+    color: #666;
+}
+
+.markdown-content a.external-link:hover::after {
+    color: #1976d2;
 }
 
 .markdown-content ul,

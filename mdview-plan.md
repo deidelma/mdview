@@ -252,3 +252,6 @@ Following these fourteen steps produces:
 
 This plan is suitable for direct implementation by automated coding agents or human developers.
 
+[www.google.com][def]
+
+[def]: https://www.google.com

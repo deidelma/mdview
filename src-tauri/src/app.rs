@@ -15,6 +15,7 @@ use tauri::{Emitter, Manager};
 pub fn run(initial_file: Option<String>) {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState::new())
         .setup(move |app| {
             let app_handle = app.handle().clone();

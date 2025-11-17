@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
+import { open as openUrl } from '@tauri-apps/plugin-shell';
 import { initializeLayout } from './ui/layout';
 import { initializeToc } from './ui/toc';
 import { initializeSearch } from './ui/search';
@@ -41,7 +42,7 @@ const btnZoomReset = document.getElementById('btn-zoom-reset')!;
 const zoomLevel = document.getElementById('zoom-level')!;
 
 /**
- * Renders a Markdown document in the content area.
+ * Renders a loaded document.
  */
 function renderDocument(doc: MarkdownDocument) {
     currentDocument = doc;
@@ -77,6 +78,94 @@ function renderDocument(doc: MarkdownDocument) {
     
     // Update window title
     document.title = `mdview - ${doc.path}`;
+    
+    // Setup link interception for external links
+    setupLinkHandling();
+}
+
+/**
+ * Sets up link click handling to open external links in system browser.
+ */
+function setupLinkHandling() {
+    const links = markdownContainer.querySelectorAll('a');
+    console.log(`Setting up link handling for ${links.length} links`);
+    
+    links.forEach(link => {
+        const href = link.getAttribute('href');
+        console.log(`Processing link with href: ${href}`);
+        
+        if (!href) return;
+        
+        // Check if it's an external link (http://, https://, or www.)
+        if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('www.')) {
+            // For external links, move href to data attribute and remove href
+            // This prevents Tauri from intercepting the click
+            const fullUrl = href.startsWith('www.') ? `https://${href}` : href;
+            link.setAttribute('data-external-url', fullUrl);
+            link.removeAttribute('href');
+            link.style.cursor = 'pointer';
+            link.classList.add('external-link');
+            console.log(`Configured external link: ${href} -> ${fullUrl}`);
+        }
+    });
+    
+    console.log('External links processed, setting up click handler...');
+    
+    // Use event delegation for handling clicks
+    markdownContainer.addEventListener('click', async (e) => {
+        console.log('CLICK DETECTED:', e.target);
+        const target = e.target as HTMLElement;
+        const link = target.closest('a');
+        
+        if (!link) {
+            console.log('Not a link');
+            return;
+        }
+        
+        console.log('Link element found:', link);
+        
+        // Handle external links
+        const externalUrl = link.getAttribute('data-external-url');
+        console.log('External URL attr:', externalUrl);
+        
+        if (externalUrl) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`Opening external URL: ${externalUrl}`);
+            
+            try {
+                await openUrl(externalUrl);
+                console.log(`Successfully opened: ${externalUrl}`);
+            } catch (err: any) {
+                console.error('Failed to open URL:', err);
+                alert(`Failed to open link: ${err}`);
+            }
+            return;
+        }
+        
+        // Handle internal anchor links
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+            e.preventDefault();
+            const targetId = href.substring(1);
+            const targetElement = markdownContainer.querySelector(`[id="${targetId}"]`);
+            
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Update TOC active state
+                tocNav.querySelectorAll('.toc-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const tocItem = tocNav.querySelector(`[data-id="${targetId}"]`);
+                if (tocItem) {
+                    tocItem.classList.add('active');
+                }
+            }
+        }
+    });
+    
+    console.log('Link handler attached');
 }
 
 /**
