@@ -88,11 +88,9 @@ function renderDocument(doc: MarkdownDocument) {
  */
 function setupLinkHandling() {
     const links = markdownContainer.querySelectorAll('a');
-    console.log(`Setting up link handling for ${links.length} links`);
     
     links.forEach(link => {
         const href = link.getAttribute('href');
-        console.log(`Processing link with href: ${href}`);
         
         if (!href) return;
         
@@ -105,37 +103,25 @@ function setupLinkHandling() {
             link.removeAttribute('href');
             link.style.cursor = 'pointer';
             link.classList.add('external-link');
-            console.log(`Configured external link: ${href} -> ${fullUrl}`);
         }
     });
     
-    console.log('External links processed, setting up click handler...');
-    
     // Use event delegation for handling clicks
     markdownContainer.addEventListener('click', async (e) => {
-        console.log('CLICK DETECTED:', e.target);
         const target = e.target as HTMLElement;
         const link = target.closest('a');
         
-        if (!link) {
-            console.log('Not a link');
-            return;
-        }
-        
-        console.log('Link element found:', link);
+        if (!link) return;
         
         // Handle external links
         const externalUrl = link.getAttribute('data-external-url');
-        console.log('External URL attr:', externalUrl);
         
         if (externalUrl) {
             e.preventDefault();
             e.stopPropagation();
-            console.log(`Opening external URL: ${externalUrl}`);
             
             try {
                 await openUrl(externalUrl);
-                console.log(`Successfully opened: ${externalUrl}`);
             } catch (err: any) {
                 console.error('Failed to open URL:', err);
                 alert(`Failed to open link: ${err}`);
@@ -164,8 +150,6 @@ function setupLinkHandling() {
             }
         }
     });
-    
-    console.log('Link handler attached');
 }
 
 /**
