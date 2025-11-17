@@ -89,6 +89,10 @@ See [docs/architecture.md](docs/architecture.md) for architectural overview and 
 
 Development follows the plan outlined in [mdview-plan.md](mdview-plan.md).
 
+### Known Issues
+
+- **Windows Debug Build**: You may see a harmless error on exit: `Failed to unregister class Chrome_WidgetWin_0`. This is a known Chromium/WebView2 cleanup race condition and can be safely ignored.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
