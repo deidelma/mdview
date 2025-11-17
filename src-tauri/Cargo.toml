@@ -19,6 +19,7 @@ comrak = "0.30"
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt"] }
 
 [features]
 default = ["custom-protocol"]
