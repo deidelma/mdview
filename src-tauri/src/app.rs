@@ -1,7 +1,9 @@
 use crate::commands;
+use crate::history::FileHistory;
 use crate::md::MarkdownDocument;
 use crate::menu;
 use crate::state::AppState;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
 /// Runs the Tauri application.
@@ -16,9 +18,18 @@ pub fn run(initial_file: Option<String>) {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .manage(AppState::new())
         .setup(move |app| {
             let app_handle = app.handle().clone();
+
+            // Load file history from config directory
+            let file_history = if let Ok(config_dir) = app_handle.path().app_config_dir() {
+                Arc::new(Mutex::new(FileHistory::load(&config_dir)))
+            } else {
+                Arc::new(Mutex::new(FileHistory::new()))
+            };
+
+            // Initialize application state with history
+            app.manage(AppState::new(file_history.clone()));
 
             // Build and set the menu
             let menu = menu::build_menu(&app_handle).expect("Failed to build menu");
@@ -26,6 +37,16 @@ pub fn run(initial_file: Option<String>) {
 
             // Setup menu event handlers
             menu::setup_menu_handlers(&app_handle);
+
+            // Handle window close event to quit the application
+            let app_handle_clone = app_handle.clone();
+            if let Some(window) = app.get_webview_window("main") {
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { .. } = event {
+                        app_handle_clone.exit(0);
+                    }
+                });
+            }
 
             // Load initial file if provided
             if let Some(file_path) = initial_file {
@@ -63,6 +84,9 @@ pub fn run(initial_file: Option<String>) {
             commands::set_zoom_factor,
             commands::get_zoom_factor,
             commands::get_current_document,
+            commands::get_navigation_state,
+            commands::navigate_previous,
+            commands::navigate_next,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

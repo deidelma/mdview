@@ -1,6 +1,6 @@
 use crate::md::MarkdownDocument;
 use crate::state::AppState;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 /// Error type for command operations.
 #[derive(Debug, serde::Serialize)]
@@ -17,43 +17,66 @@ impl From<crate::md::loader::MdLoadError> for CommandError {
 }
 
 /// Opens and loads a Markdown document.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `path` - The file path to open
 /// * `state` - Application state
-/// 
+/// * `app` - Application handle for error dialogs
+///
 /// # Returns
-/// 
+///
 /// * `Result<MarkdownDocument, CommandError>` - The loaded document or an error
 #[tauri::command]
 pub async fn open_document(
     path: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<MarkdownDocument, CommandError> {
     // Load and parse the document
     let document = MarkdownDocument::from_file(&path)?;
-    
+
     // Update state with the new document
     let mut current_doc = state.current_document.lock().unwrap();
     *current_doc = Some(document.clone());
-    
+    drop(current_doc);
+
+    // Add to history
+    {
+        let mut history = state.file_history.lock().unwrap();
+        history.add(path.clone());
+
+        // Save history
+        if let Ok(config_dir) = app.path().app_config_dir() {
+            if let Err(e) = history.save(&config_dir) {
+                eprintln!("Failed to save file history: {}", e);
+                // Show error dialog to user
+                if let Some(window) = app.get_webview_window("main") {
+                    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                    let _ = window
+                        .dialog()
+                        .message(&format!("Failed to save file history: {}", e))
+                        .kind(MessageDialogKind::Error)
+                        .blocking_show();
+                }
+            }
+        }
+    }
+
     Ok(document)
 }
 
 /// Reloads the current document from disk.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `state` - Application state
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<MarkdownDocument, CommandError>` - The reloaded document or an error
 #[tauri::command]
-pub async fn reload_document(
-    state: State<'_, AppState>,
-) -> Result<MarkdownDocument, CommandError> {
+pub async fn reload_document(state: State<'_, AppState>) -> Result<MarkdownDocument, CommandError> {
     // Get the current document path
     let current_doc = state.current_document.lock().unwrap();
     let path = current_doc
@@ -62,55 +85,52 @@ pub async fn reload_document(
         .ok_or_else(|| CommandError {
             message: "No document is currently loaded".to_string(),
         })?;
-    
+
     drop(current_doc); // Release lock before reloading
-    
+
     // Reload the document
     let document = MarkdownDocument::from_file(&path)?;
-    
+
     // Update state
     let mut current_doc = state.current_document.lock().unwrap();
     *current_doc = Some(document.clone());
-    
+
     Ok(document)
 }
 
 /// Sets the zoom factor for the document view.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `factor` - The zoom factor (1.0 = 100%, 1.5 = 150%, etc.)
 /// * `state` - Application state
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<f64, CommandError>` - The new zoom factor
 #[tauri::command]
-pub async fn set_zoom_factor(
-    factor: f64,
-    state: State<'_, AppState>,
-) -> Result<f64, CommandError> {
+pub async fn set_zoom_factor(factor: f64, state: State<'_, AppState>) -> Result<f64, CommandError> {
     // Validate zoom factor (between 0.5 and 3.0)
     if !(0.5..=3.0).contains(&factor) {
         return Err(CommandError {
             message: format!("Zoom factor must be between 0.5 and 3.0, got {}", factor),
         });
     }
-    
+
     let mut zoom = state.zoom_factor.lock().unwrap();
     *zoom = factor;
-    
+
     Ok(factor)
 }
 
 /// Gets the current zoom factor.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `state` - Application state
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<f64, CommandError>` - The current zoom factor
 #[tauri::command]
 pub async fn get_zoom_factor(state: State<'_, AppState>) -> Result<f64, CommandError> {
@@ -119,13 +139,13 @@ pub async fn get_zoom_factor(state: State<'_, AppState>) -> Result<f64, CommandE
 }
 
 /// Gets the currently loaded document if any.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `state` - Application state
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<Option<MarkdownDocument>, CommandError>` - The current document or None
 #[tauri::command]
 pub async fn get_current_document(
@@ -135,6 +155,148 @@ pub async fn get_current_document(
     Ok(current_doc.clone())
 }
 
+/// Navigation state for UI button management.
+#[derive(Debug, serde::Serialize)]
+pub struct NavigationState {
+    pub can_go_back: bool,
+    pub can_go_forward: bool,
+}
+
+/// Gets the navigation state (whether back/forward navigation is possible).
+///
+/// # Arguments
+///
+/// * `state` - Application state
+///
+/// # Returns
+///
+/// * `Result<NavigationState, CommandError>` - The navigation state
+#[tauri::command]
+pub async fn get_navigation_state(
+    state: State<'_, AppState>,
+) -> Result<NavigationState, CommandError> {
+    let history = state.file_history.lock().unwrap();
+
+    Ok(NavigationState {
+        can_go_back: history.can_go_back(),
+        can_go_forward: history.can_go_forward(),
+    })
+}
+
+/// Navigates to the previous file in history.
+///
+/// # Arguments
+///
+/// * `state` - Application state
+/// * `app` - Application handle for error dialogs
+///
+/// # Returns
+///
+/// * `Result<MarkdownDocument, CommandError>` - The loaded document or an error
+#[tauri::command]
+pub async fn navigate_previous(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<MarkdownDocument, CommandError> {
+    // Get previous file path from history
+    let path = {
+        let mut history = state.file_history.lock().unwrap();
+        history.previous()
+    };
+
+    match path {
+        Some(p) => {
+            // Load the document
+            let document = MarkdownDocument::from_file(&p)?;
+
+            // Update state
+            let mut current_doc = state.current_document.lock().unwrap();
+            *current_doc = Some(document.clone());
+            drop(current_doc);
+
+            // Save history (position changed)
+            {
+                let history = state.file_history.lock().unwrap();
+                if let Ok(config_dir) = app.path().app_config_dir() {
+                    if let Err(e) = history.save(&config_dir) {
+                        eprintln!("Failed to save file history: {}", e);
+                        if let Some(window) = app.get_webview_window("main") {
+                            use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                            let _ = window
+                                .dialog()
+                                .message(&format!("Failed to save file history: {}", e))
+                                .kind(MessageDialogKind::Error)
+                                .blocking_show();
+                        }
+                    }
+                }
+            }
+
+            Ok(document)
+        }
+        None => Err(CommandError {
+            message: "No previous file in history".to_string(),
+        }),
+    }
+}
+
+/// Navigates to the next file in history.
+///
+/// # Arguments
+///
+/// * `state` - Application state
+/// * `app` - Application handle for error dialogs
+///
+/// # Returns
+///
+/// * `Result<MarkdownDocument, CommandError>` - The loaded document or an error
+#[tauri::command]
+pub async fn navigate_next(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<MarkdownDocument, CommandError> {
+    // Get next file path from history
+    let path = {
+        let mut history = state.file_history.lock().unwrap();
+        history.next()
+    };
+
+    match path {
+        Some(p) => {
+            // Load the document
+            let document = MarkdownDocument::from_file(&p)?;
+
+            // Update state
+            let mut current_doc = state.current_document.lock().unwrap();
+            *current_doc = Some(document.clone());
+            drop(current_doc);
+
+            // Save history (position changed)
+            {
+                let history = state.file_history.lock().unwrap();
+                if let Ok(config_dir) = app.path().app_config_dir() {
+                    if let Err(e) = history.save(&config_dir) {
+                        eprintln!("Failed to save file history: {}", e);
+                        if let Some(window) = app.get_webview_window("main") {
+                            use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                            let _ = window
+                                .dialog()
+                                .message(&format!("Failed to save file history: {}", e))
+                                .kind(MessageDialogKind::Error)
+                                .blocking_show();
+                        }
+                    }
+                }
+            }
+
+            Ok(document)
+        }
+        None => Err(CommandError {
+            message: "No next file in history".to_string(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,10 +304,10 @@ mod tests {
     #[test]
     fn test_command_error_from_load_error() {
         use crate::md::loader::MdLoadError;
-        
+
         let load_err = MdLoadError::FileNotFound("/test/path.md".to_string());
         let cmd_err: CommandError = load_err.into();
-        
+
         assert!(cmd_err.message.contains("File not found"));
         assert!(cmd_err.message.contains("/test/path.md"));
     }

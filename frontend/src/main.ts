@@ -26,6 +26,11 @@ interface TocItem {
     line_number?: number;
 }
 
+interface NavigationState {
+    can_go_back: boolean;
+    can_go_forward: boolean;
+}
+
 let currentDocument: MarkdownDocument | null = null;
 let currentZoom = 1.0;
 
@@ -35,6 +40,8 @@ const tocNav = document.getElementById('toc-nav')!;
 const tocEmpty = document.getElementById('toc-empty')!;
 const btnOpen = document.getElementById('btn-open')!;
 const btnReload = document.getElementById('btn-reload')!;
+const btnPrevFile = document.getElementById('btn-prev-file')!;
+const btnNextFile = document.getElementById('btn-next-file')!;
 const btnSearch = document.getElementById('btn-search')!;
 const btnZoomIn = document.getElementById('btn-zoom-in')!;
 const btnZoomOut = document.getElementById('btn-zoom-out')!;
@@ -81,6 +88,24 @@ function renderDocument(doc: MarkdownDocument) {
     
     // Setup link interception for external links
     setupLinkHandling();
+    
+    // Update navigation button states
+    updateNavigationState();
+}
+
+/**
+ * Updates the enabled/disabled state of navigation buttons.
+ */
+async function updateNavigationState() {
+    try {
+        const state = await invoke<NavigationState>('get_navigation_state');
+        (btnPrevFile as HTMLButtonElement).disabled = !state.can_go_back;
+        (btnNextFile as HTMLButtonElement).disabled = !state.can_go_forward;
+    } catch (error) {
+        console.error('Failed to get navigation state:', error);
+        (btnPrevFile as HTMLButtonElement).disabled = true;
+        (btnNextFile as HTMLButtonElement).disabled = true;
+    }
 }
 
 /**
@@ -296,6 +321,44 @@ async function reloadDocument() {
 }
 
 /**
+ * Navigates to the previous file in history.
+ */
+async function navigatePrevious() {
+    try {
+        const doc = await invoke<MarkdownDocument>('navigate_previous');
+        renderDocument(doc);
+    } catch (error) {
+        console.error('Failed to navigate to previous file:', error);
+        // Don't alert for "no previous file" errors
+        if (error && typeof error === 'object' && 'message' in error) {
+            const msg = (error as any).message;
+            if (!msg.includes('No previous file')) {
+                alert(`Failed to navigate: ${msg}`);
+            }
+        }
+    }
+}
+
+/**
+ * Navigates to the next file in history.
+ */
+async function navigateNext() {
+    try {
+        const doc = await invoke<MarkdownDocument>('navigate_next');
+        renderDocument(doc);
+    } catch (error) {
+        console.error('Failed to navigate to next file:', error);
+        // Don't alert for "no next file" errors
+        if (error && typeof error === 'object' && 'message' in error) {
+            const msg = (error as any).message;
+            if (!msg.includes('No next file')) {
+                alert(`Failed to navigate: ${msg}`);
+            }
+        }
+    }
+}
+
+/**
  * Copies selected text to clipboard.
  */
 function copySelection() {
@@ -464,7 +527,17 @@ async function initialize() {
     
     await listen('menu-about', () => {
         console.log('Menu: About');
-        alert('mdview v0.1.0\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
+        alert('mdview v0.1.1\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
+    });
+    
+    await listen('menu-prev-file', () => {
+        console.log('Menu: Previous File');
+        navigatePrevious();
+    });
+    
+    await listen('menu-next-file', () => {
+        console.log('Menu: Next File');
+        navigateNext();
     });
     
     console.log('Event listeners registered');
@@ -472,6 +545,8 @@ async function initialize() {
     // Set up toolbar button handlers
     btnOpen.addEventListener('click', openFile);
     btnReload.addEventListener('click', reloadDocument);
+    btnPrevFile.addEventListener('click', navigatePrevious);
+    btnNextFile.addEventListener('click', navigateNext);
     btnSearch.addEventListener('click', () => {
         const searchBar = document.getElementById('search-bar')!;
         searchBar.style.display = searchBar.style.display === 'none' ? 'flex' : 'none';
@@ -523,6 +598,18 @@ async function initialize() {
         if ((e.metaKey || e.ctrlKey) && e.key === '0') {
             e.preventDefault();
             setZoom(1.0);
+        }
+        
+        // Ctrl/Cmd+Left for previous file
+        if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigatePrevious();
+        }
+        
+        // Ctrl/Cmd+Right for next file
+        if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigateNext();
         }
     });
     

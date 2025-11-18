@@ -44,6 +44,13 @@ body {
     transition: all 0.2s;
 }
 
+/* Navigation buttons (prev/next) are icon-only */
+#btn-prev-file,
+#btn-next-file {
+    padding: 6px 10px;
+    min-width: 36px;
+}
+
 .toolbar-btn:hover:not(:disabled) {
     background: #f0f0f0;
     border-color: #999;
@@ -87,12 +94,13 @@ body {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    transition: width 0.3s, margin-left 0.3s;
+    transition: width 0.3s;
+    overflow: hidden;
 }
 
 #sidebar.collapsed {
-    width: 0;
-    margin-left: -280px;
+    width: 40px;
+    min-width: 40px;
 }
 
 #sidebar-header {
@@ -102,12 +110,21 @@ body {
     padding: 12px 16px;
     border-bottom: 1px solid #eee;
     background: #fafafa;
+    min-height: 48px;
 }
 
 #sidebar-header h3 {
     font-size: 14px;
     font-weight: 600;
     color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.3s;
+}
+
+#sidebar.collapsed #sidebar-header h3 {
+    opacity: 0;
+    width: 0;
 }
 
 #btn-toggle-sidebar {
@@ -117,7 +134,8 @@ body {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.3s;
+    flex-shrink: 0;
 }
 
 #btn-toggle-sidebar:hover {
@@ -132,6 +150,12 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 8px;
+    transition: opacity 0.3s;
+}
+
+#sidebar.collapsed #toc-container {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .toc-empty {
@@ -189,7 +213,9 @@ body {
 }
 
 #sidebar.collapsed + #resizer {
-    display: none;
+    cursor: default;
+    background: #ddd;
+    pointer-events: none;
 }
 
 /* Content Area */
@@ -250,8 +276,6 @@ body {
     padding: 32px 48px;
     transform-origin: top left;
     transition: transform 0.2s ease-out;
-}
-    line-height: 1.6;
 }
 
 .welcome-message {

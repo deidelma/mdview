@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mdview</title>
 </head>
+
 <body>
     <div id="app">
         <!-- Toolbar -->
@@ -16,6 +18,12 @@
             <button id="btn-reload" class="toolbar-btn" title="Reload file" disabled>
                 <span>🔄</span>
                 <span>Reload</span>
+            </button>
+            <button id="btn-prev-file" class="toolbar-btn" title="Previous file" disabled>
+                <span>◀</span>
+            </button>
+            <button id="btn-next-file" class="toolbar-btn" title="Next file" disabled>
+                <span>▶</span>
             </button>
             <div class="toolbar-separator"></div>
             <button id="btn-search" class="toolbar-btn" title="Search">
@@ -74,4 +82,5 @@
 
     <script type="module" src="/src/main.ts"></script>
 </body>
+
 </html>

@@ -4,6 +4,7 @@ use clap::Parser;
 
 mod app;
 mod commands;
+mod history;
 mod md;
 mod menu;
 mod state;

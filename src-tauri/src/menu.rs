@@ -14,13 +14,21 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
     let open = MenuItemBuilder::with_id("open", "Open...")
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
-    
+
+    let prev_file = MenuItemBuilder::with_id("prev-file", "Previous File")
+        .accelerator("CmdOrCtrl+Left")
+        .build(app)?;
+
+    let next_file = MenuItemBuilder::with_id("next-file", "Next File")
+        .accelerator("CmdOrCtrl+Right")
+        .build(app)?;
+
     let about = MenuItemBuilder::with_id("about", "About mdview").build(app)?;
-    
+
     let quit = MenuItemBuilder::with_id("quit", "Quit")
         .accelerator("CmdOrCtrl+Q")
         .build(app)?;
-    
+
     // File menu
     let file_menu = {
         #[cfg(target_os = "macos")]
@@ -28,55 +36,61 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
             // On macOS, File menu only has Open (Quit is in app menu)
             SubmenuBuilder::new(app, "File")
                 .item(&open)
+                .separator()
+                .item(&prev_file)
+                .item(&next_file)
                 .build()?
         }
-        
+
         #[cfg(not(target_os = "macos"))]
         {
             // On Windows/Linux, File menu has Open and Quit
             SubmenuBuilder::new(app, "File")
                 .item(&open)
                 .separator()
+                .item(&prev_file)
+                .item(&next_file)
+                .separator()
                 .item(&quit)
                 .build()?
         }
     };
-    
+
     // Edit menu
     let copy = MenuItemBuilder::with_id("copy", "Copy")
         .accelerator("CmdOrCtrl+C")
         .build(app)?;
-    
+
     let search = MenuItemBuilder::with_id("search", "Search")
         .accelerator("CmdOrCtrl+F")
         .build(app)?;
-    
+
     let edit_menu = SubmenuBuilder::new(app, "Edit")
         .item(&copy)
         .separator()
         .item(&search)
         .build()?;
-    
+
     // View menu
     let zoom_in = MenuItemBuilder::with_id("zoom-in", "Zoom In")
         .accelerator("CmdOrCtrl+Plus")
         .build(app)?;
-    
+
     let zoom_out = MenuItemBuilder::with_id("zoom-out", "Zoom Out")
         .accelerator("CmdOrCtrl+Minus")
         .build(app)?;
-    
+
     let zoom_reset = MenuItemBuilder::with_id("zoom-reset", "Reset Zoom")
         .accelerator("CmdOrCtrl+0")
         .build(app)?;
-    
+
     let view_menu = SubmenuBuilder::new(app, "View")
         .item(&zoom_in)
         .item(&zoom_out)
         .separator()
         .item(&zoom_reset)
         .build()?;
-    
+
     // Build complete menu
     let menu = {
         #[cfg(target_os = "macos")]
@@ -87,7 +101,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .separator()
                 .item(&quit)
                 .build()?;
-            
+
             MenuBuilder::new(app)
                 .item(&app_menu)
                 .item(&file_menu)
@@ -95,14 +109,12 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .item(&view_menu)
                 .build()?
         }
-        
+
         #[cfg(not(target_os = "macos"))]
         {
             // On Windows/Linux, we have a separate Help menu with About
-            let help_menu = SubmenuBuilder::new(app, "Help")
-                .item(&about)
-                .build()?;
-            
+            let help_menu = SubmenuBuilder::new(app, "Help").item(&about).build()?;
+
             MenuBuilder::new(app)
                 .item(&file_menu)
                 .item(&edit_menu)
@@ -111,7 +123,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .build()?
         }
     };
-    
+
     Ok(menu)
 }
 
@@ -123,11 +135,21 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
 pub fn setup_menu_handlers<R: Runtime>(app: &AppHandle<R>) {
     app.on_menu_event(move |app, event| {
         let event_id = event.id().as_ref();
-        
+
         match event_id {
             "open" => {
                 if let Err(e) = app.emit("menu-open", ()) {
                     eprintln!("Failed to emit menu-open event: {}", e);
+                }
+            }
+            "prev-file" => {
+                if let Err(e) = app.emit("menu-prev-file", ()) {
+                    eprintln!("Failed to emit menu-prev-file event: {}", e);
+                }
+            }
+            "next-file" => {
+                if let Err(e) = app.emit("menu-next-file", ()) {
+                    eprintln!("Failed to emit menu-next-file event: {}", e);
                 }
             }
             "quit" => {
