@@ -13,6 +13,9 @@ A lightweight cross-platform Markdown viewer built with Rust and Tauri.
 - External link handling
 - Copy functionality
 
+This project is being developed as an experiment in LLM-assisted coding.  The code, tests, and documentation were implemented 
+using LLMs.  The plan was created using GPT5.1 from OpenAI. The code was primarily generated using Claude Sonnet 4.5 from Anthropic.
+
 ## Features
 
 - **Native Performance**: Built with Rust and Tauri for minimal resource usage
@@ -24,7 +27,7 @@ A lightweight cross-platform Markdown viewer built with Rust and Tauri.
 
 ## Installation
 
-### Pre-built Binaries
+### Pre-built Binaries (Not Implemented)
 
 Download the latest release for your platform from the [Releases page](https://github.com/deidelma/mdview/releases).
 
@@ -91,6 +94,7 @@ Development follows the plan outlined in [mdview-plan.md](mdview-plan.md).
 
 ### Known Issues
 
+- binary releases are not yet implemented
 - **Windows Debug Build**: You may see a harmless error on exit: `Failed to unregister class Chrome_WidgetWin_0`. This is a known Chromium/WebView2 cleanup race condition and can be safely ignored.
 
 ## License
