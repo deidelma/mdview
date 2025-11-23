@@ -4,8 +4,8 @@
   "version": "0.1.1",
   "identifier": "ca.dhe.mdview",
   "build": {
-    "beforeDevCommand": "cd frontend && npm run dev",
-    "beforeBuildCommand": "cd frontend && npm run build",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../frontend/dist"
   },
@@ -66,7 +66,7 @@
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
-        "languages": ["en-US"],
+        "languages": ["English"],
         "displayLanguageSelector": false,
         "compression": "lzma"
       }
