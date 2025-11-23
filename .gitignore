@@ -103,3 +103,5 @@ coverage/
 tmp/
 temp/
 *.tmp
+*.zip
+*.tar.gz
