@@ -80,6 +80,30 @@
         </div>
     </div>
 
+    <div id="about-overlay" class="about-overlay" hidden>
+        <div id="about-dialog" class="about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title">
+            <button id="about-close" class="about-close" type="button" aria-label="Close About dialog">✕</button>
+            <div class="about-header">
+                <img src="/128x128.png" alt="mdview icon" class="about-icon">
+                <div class="about-meta">
+                    <h2 id="about-title">mdview</h2>
+                    <p id="about-version"></p>
+                    <p id="about-description"></p>
+                    <p id="about-copyright"></p>
+                </div>
+            </div>
+            <div class="about-tabs" role="tablist" aria-label="About sections">
+                <button id="about-tab-license" class="about-tab active" type="button" role="tab" aria-selected="true">
+                    MIT License
+                </button>
+                <button id="about-tab-third-party" class="about-tab" type="button" role="tab" aria-selected="false">
+                    Open Source Notices
+                </button>
+            </div>
+            <div id="about-text" class="about-text markdown-content"></div>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
 </body>
 

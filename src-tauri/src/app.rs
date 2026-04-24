@@ -172,6 +172,7 @@ pub fn run(initial_file: Option<String>) {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_about_info,
             commands::open_document,
             commands::reload_document,
             commands::set_zoom_factor,

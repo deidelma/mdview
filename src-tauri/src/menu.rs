@@ -23,6 +23,9 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+Right")
         .build(app)?;
 
+    #[cfg(target_os = "macos")]
+    let about = MenuItemBuilder::with_id("about", "About mdview").build(app)?;
+
     #[cfg(not(target_os = "macos"))]
     let about = MenuItemBuilder::with_id("about", "About mdview").build(app)?;
 
@@ -118,19 +121,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
     let menu = {
         #[cfg(target_os = "macos")]
         {
-            use tauri::menu::{AboutMetadataBuilder, PredefinedMenuItem};
-
-            let about = PredefinedMenuItem::about(
-                app,
-                Some("About mdview"),
-                Some(
-                    AboutMetadataBuilder::new()
-                        .name(Some("mdview"))
-                        .version(Some(env!("CARGO_PKG_VERSION")))
-                        .copyright(Some("Copyright (c) 2025 David Eidelman"))
-                        .build(),
-                ),
-            )?;
+            use tauri::menu::PredefinedMenuItem;
             let services = PredefinedMenuItem::services(app, Some("Services"))?;
             let hide = PredefinedMenuItem::hide(app, Some("Hide mdview"))?;
             let hide_others = PredefinedMenuItem::hide_others(app, Some("Hide Others"))?;
