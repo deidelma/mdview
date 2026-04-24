@@ -104,7 +104,7 @@ The release binary will be located at:
 
 #### macOS Application Bundle
 
-For macOS, you can create a proper `.app` bundle using Tauri's bundler. First, install the Tauri CLI:
+For macOS, `src-tauri/tauri.macos.conf.json` is merged automatically by Tauri and enables the macOS bundle targets for this repository (`app` + `dmg`). First, install the Tauri CLI:
 
 ```bash
 cargo install tauri-cli
@@ -117,45 +117,45 @@ cd src-tauri
 cargo tauri build
 ```
 
-The `.app` bundle and `.dmg` installer will be in:
+The bundle outputs are written to the workspace target directory:
 ```
-src-tauri/target/release/bundle/macos/mdview.app
-src-tauri/target/release/bundle/dmg/mdview_0.1.0_*.dmg
+target/release/bundle/macos/mdview.app
+target/release/bundle/dmg/mdview_0.15.1_*.dmg
 ```
 
 #### Linux Package
 
-Build AppImage or Debian package:
+On Linux, `src-tauri/tauri.linux.conf.json` is merged automatically and enables the `deb` and `appimage` bundle targets:
 
 ```bash
+cd src-tauri
 cargo tauri build
 ```
 
 Output locations:
-- **AppImage**: `src-tauri/target/release/bundle/appimage/mdview_*.AppImage`
-- **Debian**: `src-tauri/target/release/bundle/deb/mdview_*.deb`
+- **AppImage**: `target/release/bundle/appimage/mdview_*.AppImage`
+- **Debian**: `target/release/bundle/deb/mdview_*.deb`
 
 #### Windows Installer
 
-Build MSI installer:
+On Windows, `src-tauri/tauri.windows.conf.json` is merged automatically and enables the NSIS installer target:
 
 ```bash
+cd src-tauri
 cargo tauri build
 ```
 
 Output location:
-- **MSI**: `src-tauri\target\release\bundle\msi\mdview_*.msi`
+- **NSIS**: `target\release\bundle\nsis\mdview_0.15.1_x64-setup.exe`
 
 ## Build Configuration
 
-The build is configured via `src-tauri/tauri.conf.json`:
+The build is configured via a shared base config plus platform-specific overrides:
 
-- **productName**: Application display name
-- **version**: Application version (keep in sync with `Cargo.toml`)
-- **identifier**: Unique app identifier (reverse domain notation)
-- **bundle.icon**: Application icons
-- **bundle.category**: macOS App Store category
-- **bundle.targets**: Build targets (`all`, `dmg`, `deb`, `appimage`, `msi`, etc.)
+- `src-tauri/tauri.conf.json` - shared application and bundle metadata
+- `src-tauri/tauri.macos.conf.json` - macOS bundle targets, file association, and DMG settings
+- `src-tauri/tauri.windows.conf.json` - Windows NSIS target and installer settings
+- `src-tauri/tauri.linux.conf.json` - Linux deb/appimage targets
 
 ## Testing the Build
 

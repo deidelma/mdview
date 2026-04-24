@@ -1,0 +1,30 @@
+{
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown", "mkd", "mdx"],
+        "name": "Markdown document",
+        "role": "Viewer"
+      }
+    ],
+    "macOS": {
+      "bundleName": "mdview",
+      "minimumSystemVersion": "10.13",
+      "dmg": {
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        }
+      }
+    }
+  }
+}
