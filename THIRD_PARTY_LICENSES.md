@@ -290,4 +290,4 @@ SOFTWARE.
   - Rust: `cargo tree` (shows dependency tree)
   - Frontend: `npm list` (shows dependency tree)
 
-**Last Updated**: November 17, 2025
+**Last Updated**: April 24, 2026

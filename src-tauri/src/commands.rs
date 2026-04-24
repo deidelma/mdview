@@ -1,6 +1,10 @@
-use crate::md::{loader::MdLoadError, MarkdownDocument};
+use crate::md::{loader::MdLoadError, parser, MarkdownDocument};
 use crate::state::AppState;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+
+const ABOUT_COPYRIGHT: &str = "Copyright (c) 2025, 2026 David Eidelman";
+const MIT_LICENSE_TEXT: &str = include_str!("../../LICENSE");
+const THIRD_PARTY_NOTICES_TEXT: &str = include_str!("../../THIRD_PARTY_LICENSES.md");
 
 /// Error type for command operations.
 #[derive(Debug, serde::Serialize)]
@@ -13,6 +17,27 @@ impl From<crate::md::loader::MdLoadError> for CommandError {
         Self {
             message: err.to_string(),
         }
+    }
+}
+
+#[derive(Debug, serde::Serialize, PartialEq, Eq)]
+pub struct AboutInfo {
+    pub app_name: String,
+    pub version: String,
+    pub description: String,
+    pub copyright: String,
+    pub mit_license_html: String,
+    pub third_party_notices_html: String,
+}
+
+fn build_about_info() -> AboutInfo {
+    AboutInfo {
+        app_name: env!("CARGO_PKG_NAME").to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        description: env!("CARGO_PKG_DESCRIPTION").to_string(),
+        copyright: ABOUT_COPYRIGHT.to_string(),
+        mit_license_html: parser::markdown_to_html(MIT_LICENSE_TEXT),
+        third_party_notices_html: parser::markdown_to_html(THIRD_PARTY_NOTICES_TEXT),
     }
 }
 
@@ -62,6 +87,11 @@ pub(crate) fn emit_document_error_message(window: &WebviewWindow, message: &str)
     if let Err(emit_err) = window.emit("document-load-error", message.to_string()) {
         eprintln!("Failed to emit error event: {}", emit_err);
     }
+}
+
+#[tauri::command]
+pub async fn get_about_info() -> AboutInfo {
+    build_about_info()
 }
 
 /// Opens and loads a Markdown document.
@@ -375,5 +405,21 @@ mod tests {
         assert!((0.5..=3.0).contains(&3.0));
         assert!(!(0.5..=3.0).contains(&0.49));
         assert!(!(0.5..=3.0).contains(&3.01));
+    }
+
+    #[test]
+    fn test_build_about_info_contains_expected_content() {
+        let about = build_about_info();
+
+        assert_eq!(about.app_name, "mdview");
+        assert_eq!(about.version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(about.description, env!("CARGO_PKG_DESCRIPTION"));
+        assert_eq!(about.copyright, ABOUT_COPYRIGHT);
+        assert!(about.mit_license_html.contains("MIT License"));
+        assert!(about.mit_license_html.contains("<p>"));
+        assert!(about
+            .third_party_notices_html
+            .contains("Third-Party Licenses"));
+        assert!(about.third_party_notices_html.contains("<h1"));
     }
 }

@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { initializeAbout, showAbout, type AboutInfo } from './ui/about';
 import { initializeLayout } from './ui/layout';
 import { initializeToc } from './ui/toc';
 import { initializeSearch } from './ui/search';
@@ -33,6 +34,7 @@ interface NavigationState {
 
 let currentDocument: MarkdownDocument | null = null;
 let currentZoom = 1.0;
+let aboutInfoPromise: Promise<AboutInfo> | null = null;
 
 // DOM Elements
 const markdownContainer = document.getElementById('markdown-container')!;
@@ -467,6 +469,33 @@ async function setZoom(factor: number) {
 }
 
 /**
+ * Loads and caches About dialog content.
+ */
+async function getAboutInfo() {
+    if (!aboutInfoPromise) {
+        aboutInfoPromise = invoke<AboutInfo>('get_about_info').catch((error) => {
+            aboutInfoPromise = null;
+            throw error;
+        });
+    }
+
+    return aboutInfoPromise;
+}
+
+/**
+ * Opens the About dialog.
+ */
+async function openAboutDialog() {
+    try {
+        const aboutInfo = await getAboutInfo();
+        showAbout(aboutInfo);
+    } catch (error) {
+        console.error('Failed to load About information:', error);
+        alert(`Failed to open About dialog: ${error}`);
+    }
+}
+
+/**
  * Initializes the application.
  */
 async function initialize() {
@@ -476,6 +505,7 @@ async function initialize() {
     console.log('Toolbar element:', document.getElementById('toolbar'));
     
     // Initialize UI components
+    initializeAbout();
     initializeLayout();
     initializeToc();
     initializeSearch();
@@ -528,7 +558,7 @@ async function initialize() {
     
     await currentWindow.listen('menu-about', () => {
         console.log('Menu: About');
-        alert('mdview v0.15\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
+        void openAboutDialog();
     });
     
     await currentWindow.listen('menu-prev-file', () => {
