@@ -69,6 +69,10 @@ mdview path/to/document.md
 mdview
 ```
 
+On desktop platforms, you can also drop a Markdown file onto the `mdview` executable to open it. If `mdview` is already running, the dropped file opens in the existing window. When multiple files are dropped onto the executable at once, the first file is opened.
+
+You can also drag Markdown files onto an already open mdview window. Each dropped Markdown file opens in its own new viewer window, leaving the original window unchanged.
+
 ### Keyboard Shortcuts
 
 - **Cmd/Ctrl+O**: Open file

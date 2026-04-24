@@ -1,6 +1,6 @@
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder},
-    AppHandle, Emitter, Runtime,
+    AppHandle, Emitter, Manager, Runtime, WebviewWindow,
 };
 
 /// Creates and builds the native application menu.
@@ -127,61 +127,57 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
     Ok(menu)
 }
 
-/// Sets up menu event handlers.
-///
-/// This function registers a handler for all menu events, emitting corresponding
-/// events to the frontend for processing. The frontend is responsible for the
-/// actual implementation of menu actions.
-pub fn setup_menu_handlers<R: Runtime>(app: &AppHandle<R>) {
-    app.on_menu_event(move |app, event| {
+/// Sets up menu event handlers for a specific window.
+pub fn setup_menu_handlers<R: Runtime>(window: &WebviewWindow<R>) {
+    window.on_menu_event(move |window, event| {
         let event_id = event.id().as_ref();
 
         match event_id {
             "open" => {
-                if let Err(e) = app.emit("menu-open", ()) {
+                if let Err(e) = window.emit("menu-open", ()) {
                     eprintln!("Failed to emit menu-open event: {}", e);
                 }
             }
             "prev-file" => {
-                if let Err(e) = app.emit("menu-prev-file", ()) {
+                if let Err(e) = window.emit("menu-prev-file", ()) {
                     eprintln!("Failed to emit menu-prev-file event: {}", e);
                 }
             }
             "next-file" => {
-                if let Err(e) = app.emit("menu-next-file", ()) {
+                if let Err(e) = window.emit("menu-next-file", ()) {
                     eprintln!("Failed to emit menu-next-file event: {}", e);
                 }
             }
             "quit" => {
-                app.exit(0);
+                window.app_handle().exit(0);
             }
             "copy" => {
-                if let Err(e) = app.emit("menu-copy", ()) {
+                if let Err(e) = window.emit("menu-copy", ()) {
                     eprintln!("Failed to emit menu-copy event: {}", e);
                 }
             }
             "search" => {
-                if let Err(e) = app.emit("menu-search", ()) {
+                if let Err(e) = window.emit("menu-search", ()) {
                     eprintln!("Failed to emit menu-search event: {}", e);
                 }
             }
             "zoom-in" => {
-                if let Err(e) = app.emit("menu-zoom-in", ()) {
+                if let Err(e) = window.emit("menu-zoom-in", ()) {
                     eprintln!("Failed to emit menu-zoom-in event: {}", e);
                 }
             }
             "zoom-out" => {
-                if let Err(e) = app.emit("menu-zoom-out", ()) {
+                if let Err(e) = window.emit("menu-zoom-out", ()) {
                     eprintln!("Failed to emit menu-zoom-out event: {}", e);
                 }
             }
             "zoom-reset" => {
-                if let Err(e) = app.emit("menu-zoom-reset", ()) {
+                if let Err(e) = window.emit("menu-zoom-reset", ()) {
                     eprintln!("Failed to emit menu-zoom-reset event: {}", e);
                 }
             }
             "about" => {
-                if let Err(e) = app.emit("menu-about", ()) {
+                if let Err(e) = window.emit("menu-about", ()) {
                     eprintln!("Failed to emit menu-about event: {}", e);
                 }
             }
