@@ -120,7 +120,7 @@ cargo tauri build
 The bundle outputs are written to the workspace target directory:
 ```
 target/release/bundle/macos/mdview.app
-target/release/bundle/dmg/mdview_0.15.1_*.dmg
+target/release/bundle/dmg/mdview_0.15.3_*.dmg
 ```
 
 #### Linux Package
@@ -146,7 +146,7 @@ cargo tauri build
 ```
 
 Output location:
-- **NSIS**: `target\release\bundle\nsis\mdview_0.15.1_x64-setup.exe`
+- **NSIS**: `target\release\bundle\nsis\mdview_0.15.3_x64-setup.exe`
 
 ## Build Configuration
 
