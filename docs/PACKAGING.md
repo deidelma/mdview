@@ -52,8 +52,8 @@ cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/dmg/mdview_0.15.1_aarch64.dmg`
-- `target/release/bundle/dmg/mdview_0.15.1_x64.dmg`
+- `target/release/bundle/dmg/mdview_0.15.3_aarch64.dmg`
+- `target/release/bundle/dmg/mdview_0.15.3_x64.dmg`
 
 **Customization:**
 Edit `src-tauri/tauri.macos.conf.json` to customize DMG appearance:
@@ -110,7 +110,7 @@ cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/appimage/mdview_0.15.1_amd64.AppImage`
+- `target/release/bundle/appimage/mdview_0.15.3_amd64.AppImage`
 
 **Usage:**
 ```bash
@@ -129,7 +129,7 @@ cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/deb/mdview_0.15.1_amd64.deb`
+- `target/release/bundle/deb/mdview_0.15.3_amd64.deb`
 
 **Install:**
 ```bash
@@ -148,7 +148,7 @@ cargo tauri build --bundles rpm
 ```
 
 **Output:**
-- `target/release/bundle/rpm/mdview-0.15.1-1.x86_64.rpm`
+- `target/release/bundle/rpm/mdview-0.15.3-1.x86_64.rpm`
 
 **Install:**
 ```bash
@@ -166,7 +166,7 @@ cargo tauri build
 ```
 
 **Output:**
-- `target\release\bundle\nsis\mdview_0.15.1_x64-setup.exe`
+- `target\release\bundle\nsis\mdview_0.15.3_x64-setup.exe`
 
 **Code Signing (Optional):**
 ```powershell
@@ -182,20 +182,20 @@ Update version in multiple files:
 1. **Cargo.toml:**
    ```toml
    [package]
-   version = "0.15.1"
+   version = "0.15.3"
    ```
 
 2. **tauri.conf.json:**
    ```json
    {
-      "version": "0.15.1"
+      "version": "0.15.3"
    }
    ```
 
 3. **package.json:**
    ```json
    {
-      "version": "0.15.1"
+      "version": "0.15.3"
    }
    ```
 
@@ -209,8 +209,8 @@ Before creating a release:
 - [ ] Build for all target platforms
 - [ ] Test installers on clean machines
 - [ ] Update `THIRD_PARTY_LICENSES.md`
-- [ ] Create Git tag: `git tag v0.15.1`
-- [ ] Push tag: `git push origin v0.15.1`
+- [ ] Create Git tag: `git tag v0.15.3`
+- [ ] Push tag: `git push origin v0.15.3`
 
 ## Continuous Integration (Optional)
 
@@ -287,7 +287,7 @@ Create a Homebrew formula:
 class Mdview < Formula
   desc "Lightweight Markdown viewer"
   homepage "https://github.com/deidelma/mdview"
-  url "https://github.com/deidelma/mdview/archive/v0.15.1.tar.gz"
+  url "https://github.com/deidelma/mdview/archive/v0.15.3.tar.gz"
   sha256 "..."
   
   depends_on "rust" => :build
