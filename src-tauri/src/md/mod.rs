@@ -39,20 +39,20 @@ impl MarkdownDocument {
     }
 
     /// Loads and parses a Markdown file from the filesystem.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `path` - The file path to load
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Result<MarkdownDocument, loader::MdLoadError>` - The parsed document or an error
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mdview::md::MarkdownDocument;
-    /// 
+    ///
     /// let doc = MarkdownDocument::from_file("README.md")?;
     /// println!("Loaded: {}", doc.path);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -62,7 +62,7 @@ impl MarkdownDocument {
         let raw_content = loader::load_markdown_file(&path)?;
         let html_content = parser::markdown_to_html(&raw_content);
         let toc = toc::extract_toc(&raw_content);
-        
+
         Ok(Self::new(path_str, raw_content, html_content, toc))
     }
 }
@@ -114,7 +114,7 @@ mod tests {
             "<h1>Hello</h1>".to_string(),
             vec![],
         );
-        
+
         assert_eq!(doc.path, "test.md");
         assert_eq!(doc.raw_content, "# Hello");
         assert_eq!(doc.html_content, "<h1>Hello</h1>");
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_markdown_document_empty() {
         let doc = MarkdownDocument::empty();
-        
+
         assert!(doc.path.is_empty());
         assert!(doc.raw_content.is_empty());
         assert!(doc.html_content.is_empty());
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn test_toc_item_new() {
         let item = TocItem::new(1, "Introduction".to_string(), "introduction".to_string());
-        
+
         assert_eq!(item.level, 1);
         assert_eq!(item.text, "Introduction");
         assert_eq!(item.id, "introduction");
@@ -149,7 +149,7 @@ mod tests {
             "getting-started".to_string(),
             10,
         );
-        
+
         assert_eq!(item.level, 2);
         assert_eq!(item.text, "Getting Started");
         assert_eq!(item.id, "getting-started");
@@ -160,7 +160,7 @@ mod tests {
     fn test_toc_item_equality() {
         let item1 = TocItem::new(1, "Test".to_string(), "test".to_string());
         let item2 = TocItem::new(1, "Test".to_string(), "test".to_string());
-        
+
         assert_eq!(item1, item2);
     }
 
@@ -172,11 +172,11 @@ mod tests {
             "<h1>Title</h1>".to_string(),
             vec![TocItem::new(1, "Title".to_string(), "title".to_string())],
         );
-        
+
         // Test that serialization works (will be used for Tauri commands)
         let json = serde_json::to_string(&doc);
         assert!(json.is_ok());
-        
+
         // Test deserialization
         let deserialized: Result<MarkdownDocument, _> = serde_json::from_str(&json.unwrap());
         assert!(deserialized.is_ok());

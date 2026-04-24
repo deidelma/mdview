@@ -5,6 +5,7 @@ use clap::Parser;
 mod app;
 mod commands;
 mod history;
+mod launch;
 mod md;
 mod menu;
 mod state;
@@ -14,12 +15,12 @@ mod state;
 #[command(name = "mdview")]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Path to the Markdown file to open
+    /// Path(s) to Markdown files to open
     #[arg(value_name = "FILE")]
-    file: Option<String>,
+    files: Vec<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    app::run(args.file);
+    app::run(launch::select_initial_file(&args.files));
 }

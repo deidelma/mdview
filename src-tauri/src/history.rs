@@ -129,6 +129,37 @@ impl FileHistory {
         Some(self.files[self.current_index as usize].clone())
     }
 
+    /// Gets the current history index.
+    pub fn current_index(&self) -> isize {
+        self.current_index
+    }
+
+    /// Sets the current history index to the given file path if it exists.
+    pub fn set_current_to_path(&mut self, path: &str) -> bool {
+        self.validate();
+
+        if let Some(position) = self.files.iter().position(|entry| entry == path) {
+            self.current_index = position as isize;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Restores the history index if it still matches an expected in-flight navigation target.
+    pub fn rollback_current_index(&mut self, expected_current: isize, restore_to: isize) {
+        if self.current_index != expected_current {
+            return;
+        }
+
+        if self.files.is_empty() || restore_to < 0 {
+            self.current_index = -1;
+            return;
+        }
+
+        self.current_index = restore_to.min((self.files.len() - 1) as isize);
+    }
+
     /// Checks if we can navigate to a previous file.
     ///
     /// # Returns
@@ -223,7 +254,14 @@ impl Default for FileHistory {
 mod tests {
     use super::*;
     use std::fs::File;
+    use std::path::Path;
     use tempfile::tempdir;
+
+    fn create_temp_markdown_file(dir: &Path, name: &str) -> String {
+        let path = dir.join(name);
+        File::create(&path).unwrap();
+        path.to_str().unwrap().to_string()
+    }
 
     #[test]
     fn test_add_file() {
@@ -260,10 +298,11 @@ mod tests {
 
     #[test]
     fn test_can_go_back_forward() {
+        let temp_dir = tempdir().unwrap();
         let mut history = FileHistory::new();
-        history.add("/path/to/file1.md".to_string());
-        history.add("/path/to/file2.md".to_string());
-        history.add("/path/to/file3.md".to_string());
+        history.add(create_temp_markdown_file(temp_dir.path(), "file1.md"));
+        history.add(create_temp_markdown_file(temp_dir.path(), "file2.md"));
+        history.add(create_temp_markdown_file(temp_dir.path(), "file3.md"));
 
         // At end
         assert!(history.can_go_back());
@@ -310,8 +349,8 @@ mod tests {
         let config_dir = temp_dir.path().to_path_buf();
 
         let mut history = FileHistory::new();
-        history.add("/path/to/file1.md".to_string());
-        history.add("/path/to/file2.md".to_string());
+        history.add(create_temp_markdown_file(temp_dir.path(), "file1.md"));
+        history.add(create_temp_markdown_file(temp_dir.path(), "file2.md"));
 
         // Save
         history.save(&config_dir).unwrap();
@@ -321,5 +360,19 @@ mod tests {
 
         assert_eq!(loaded.files.len(), 2);
         assert_eq!(loaded.current_index, 1);
+    }
+
+    #[test]
+    fn test_set_current_to_path_updates_index() {
+        let temp_dir = tempdir().unwrap();
+        let mut history = FileHistory::new();
+        let file1 = create_temp_markdown_file(temp_dir.path(), "file1.md");
+        let file2 = create_temp_markdown_file(temp_dir.path(), "file2.md");
+
+        history.add(file1);
+        history.add(file2.clone());
+
+        assert!(history.set_current_to_path(&file2));
+        assert_eq!(history.current_index(), 1);
     }
 }

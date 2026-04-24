@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { initializeLayout } from './ui/layout';
 import { initializeToc } from './ui/toc';
 import { initializeSearch } from './ui/search';
@@ -47,6 +47,7 @@ const btnZoomIn = document.getElementById('btn-zoom-in')!;
 const btnZoomOut = document.getElementById('btn-zoom-out')!;
 const btnZoomReset = document.getElementById('btn-zoom-reset')!;
 const zoomLevel = document.getElementById('zoom-level')!;
+const currentWindow = getCurrentWindow();
 
 /**
  * Renders a loaded document.
@@ -481,61 +482,61 @@ async function initialize() {
     
     // Set up event listeners FIRST, before any other setup
     // Listen for document loaded from CLI
-    await listen<MarkdownDocument>('document-loaded', (event) => {
+    await currentWindow.listen<MarkdownDocument>('document-loaded', (event) => {
         console.log('Document loaded from CLI:', event.payload.path);
         renderDocument(event.payload);
     });
     
     // Listen for document load errors
-    await listen<string>('document-load-error', (event) => {
+    await currentWindow.listen<string>('document-load-error', (event) => {
         console.error('Document load error:', event.payload);
         alert(`Failed to load document: ${event.payload}`);
     });
     
     // Listen for menu events
-    await listen('menu-open', () => {
+    await currentWindow.listen('menu-open', () => {
         console.log('Menu: Open');
         openFile();
     });
     
-    await listen('menu-copy', () => {
+    await currentWindow.listen('menu-copy', () => {
         console.log('Menu: Copy');
         copySelection();
     });
     
-    await listen('menu-search', () => {
+    await currentWindow.listen('menu-search', () => {
         console.log('Menu: Search');
         const searchBar = document.getElementById('search-bar')!;
         searchBar.style.display = 'flex';
         (document.getElementById('search-input') as HTMLInputElement).focus();
     });
     
-    await listen('menu-zoom-in', () => {
+    await currentWindow.listen('menu-zoom-in', () => {
         console.log('Menu: Zoom In');
         setZoom(Math.min(currentZoom + 0.1, 3.0));
     });
     
-    await listen('menu-zoom-out', () => {
+    await currentWindow.listen('menu-zoom-out', () => {
         console.log('Menu: Zoom Out');
         setZoom(Math.max(currentZoom - 0.1, 0.5));
     });
     
-    await listen('menu-zoom-reset', () => {
+    await currentWindow.listen('menu-zoom-reset', () => {
         console.log('Menu: Reset Zoom');
         setZoom(1.0);
     });
     
-    await listen('menu-about', () => {
+    await currentWindow.listen('menu-about', () => {
         console.log('Menu: About');
-        alert('mdview v0.1.1\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
+        alert('mdview v0.15\\n\\nA lightweight Markdown viewer\\n\\n© 2025 David Eidelman\\nLicensed under MIT');
     });
     
-    await listen('menu-prev-file', () => {
+    await currentWindow.listen('menu-prev-file', () => {
         console.log('Menu: Previous File');
         navigatePrevious();
     });
     
-    await listen('menu-next-file', () => {
+    await currentWindow.listen('menu-next-file', () => {
         console.log('Menu: Next File');
         navigateNext();
     });
