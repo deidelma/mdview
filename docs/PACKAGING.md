@@ -4,7 +4,11 @@ This document describes how to package and distribute mdview for different platf
 
 ## Overview
 
-mdview uses Tauri's built-in bundler to create platform-specific installers and packages. The configuration is in `src-tauri/tauri.conf.json`.
+mdview uses Tauri's built-in bundler to create platform-specific installers and packages. The repository keeps shared settings in `src-tauri/tauri.conf.json` and relies on Tauri's automatic platform config merge via:
+
+- `src-tauri/tauri.macos.conf.json`
+- `src-tauri/tauri.windows.conf.json`
+- `src-tauri/tauri.linux.conf.json`
 
 ## Prerequisites
 
@@ -43,15 +47,16 @@ DMG files provide a drag-and-drop installer experience.
 
 **Build:**
 ```bash
+cd src-tauri
 cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/dmg/mdview_0.1.0_aarch64.dmg`
-- `target/release/bundle/dmg/mdview_0.1.0_x64.dmg`
+- `target/release/bundle/dmg/mdview_0.15.1_aarch64.dmg`
+- `target/release/bundle/dmg/mdview_0.15.1_x64.dmg`
 
 **Customization:**
-Edit `src-tauri/tauri.conf.json` to customize DMG appearance:
+Edit `src-tauri/tauri.macos.conf.json` to customize DMG appearance:
 ```json
 {
   "bundle": {
@@ -100,11 +105,12 @@ AppImage is a universal Linux package format that works on most distributions.
 
 **Build:**
 ```bash
+cd src-tauri
 cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/appimage/mdview_0.1.0_amd64.AppImage`
+- `target/release/bundle/appimage/mdview_0.15.1_amd64.AppImage`
 
 **Usage:**
 ```bash
@@ -118,11 +124,12 @@ For Debian, Ubuntu, and derivatives.
 
 **Build:**
 ```bash
-cargo tauri build --bundles deb
+cd src-tauri
+cargo tauri build
 ```
 
 **Output:**
-- `target/release/bundle/deb/mdview_0.1.0_amd64.deb`
+- `target/release/bundle/deb/mdview_0.15.1_amd64.deb`
 
 **Install:**
 ```bash
@@ -130,17 +137,18 @@ sudo dpkg -i mdview_*.deb
 sudo apt-get install -f  # Fix dependencies if needed
 ```
 
-#### RPM Package
+#### RPM Package (Optional)
 
-For Fedora, RHEL, and derivatives.
+For Fedora, RHEL, and derivatives. This is **not** enabled in the repository's default Linux bundle targets, but it can still be built manually when needed.
 
 **Build:**
 ```bash
+cd src-tauri
 cargo tauri build --bundles rpm
 ```
 
 **Output:**
-- `target/release/bundle/rpm/mdview-0.1.0-1.x86_64.rpm`
+- `target/release/bundle/rpm/mdview-0.15.1-1.x86_64.rpm`
 
 **Install:**
 ```bash
@@ -149,17 +157,16 @@ sudo rpm -i mdview-*.rpm
 
 ### Windows
 
-#### MSI Installer
-
-Standard Windows installer format.
+#### NSIS Installer
 
 **Build:**
 ```bash
+cd src-tauri
 cargo tauri build
 ```
 
 **Output:**
-- `target\release\bundle\msi\mdview_0.1.0_x64_en-US.msi`
+- `target\release\bundle\nsis\mdview_0.15.1_x64-setup.exe`
 
 **Code Signing (Optional):**
 ```powershell
@@ -168,17 +175,6 @@ $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "password"
 cargo tauri build
 ```
 
-#### NSIS Installer (Alternative)
-
-For more customization options:
-
-```bash
-cargo tauri build --bundles nsis
-```
-
-**Output:**
-- `target\release\bundle\nsis\mdview_0.1.0_x64-setup.exe`
-
 ## Version Management
 
 Update version in multiple files:
@@ -186,20 +182,20 @@ Update version in multiple files:
 1. **Cargo.toml:**
    ```toml
    [package]
-   version = "0.1.0"
+   version = "0.15.1"
    ```
 
 2. **tauri.conf.json:**
    ```json
    {
-     "version": "0.1.0"
+      "version": "0.15.1"
    }
    ```
 
 3. **package.json:**
    ```json
    {
-     "version": "0.1.0"
+      "version": "0.15.1"
    }
    ```
 
@@ -213,8 +209,8 @@ Before creating a release:
 - [ ] Build for all target platforms
 - [ ] Test installers on clean machines
 - [ ] Update `THIRD_PARTY_LICENSES.md`
-- [ ] Create Git tag: `git tag v0.1.0`
-- [ ] Push tag: `git push origin v0.1.0`
+- [ ] Create Git tag: `git tag v0.15.1`
+- [ ] Push tag: `git push origin v0.15.1`
 
 ## Continuous Integration (Optional)
 
@@ -291,7 +287,7 @@ Create a Homebrew formula:
 class Mdview < Formula
   desc "Lightweight Markdown viewer"
   homepage "https://github.com/deidelma/mdview"
-  url "https://github.com/deidelma/mdview/archive/v0.1.0.tar.gz"
+  url "https://github.com/deidelma/mdview/archive/v0.15.1.tar.gz"
   sha256 "..."
   
   depends_on "rust" => :build
@@ -324,31 +320,13 @@ cargo publish
 
 ## File Associations
 
-To register mdview as a Markdown file handler, add to `tauri.conf.json`:
+macOS file association for Markdown documents is configured in `src-tauri/tauri.macos.conf.json` via `bundle.fileAssociations`, covering:
 
-```json
-{
-  "bundle": {
-    "linux": {
-      "deb": {
-        "files": {
-          "/usr/share/applications/mdview.desktop": "mdview.desktop"
-        }
-      }
-    },
-    "macOS": {
-      "documentTypes": [
-        {
-          "name": "Markdown",
-          "role": "Viewer",
-          "iconPath": "icons/icon.icns",
-          "extensions": ["md", "markdown", "mdown", "mkd", "mdx"]
-        }
-      ]
-    }
-  }
-}
-```
+- `md`
+- `markdown`
+- `mdown`
+- `mkd`
+- `mdx`
 
 ## Troubleshooting
 

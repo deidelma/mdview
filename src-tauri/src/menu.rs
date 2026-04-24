@@ -23,8 +23,10 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+Right")
         .build(app)?;
 
+    #[cfg(not(target_os = "macos"))]
     let about = MenuItemBuilder::with_id("about", "About mdview").build(app)?;
 
+    #[cfg(not(target_os = "macos"))]
     let quit = MenuItemBuilder::with_id("quit", "Quit")
         .accelerator("CmdOrCtrl+Q")
         .build(app)?;
@@ -33,12 +35,16 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
     let file_menu = {
         #[cfg(target_os = "macos")]
         {
-            // On macOS, File menu only has Open (Quit is in app menu)
+            let close_window =
+                tauri::menu::PredefinedMenuItem::close_window(app, Some("Close Window"))?;
+
             SubmenuBuilder::new(app, "File")
                 .item(&open)
                 .separator()
                 .item(&prev_file)
                 .item(&next_file)
+                .separator()
+                .item(&close_window)
                 .build()?
         }
 
@@ -65,11 +71,28 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+F")
         .build(app)?;
 
-    let edit_menu = SubmenuBuilder::new(app, "Edit")
-        .item(&copy)
-        .separator()
-        .item(&search)
-        .build()?;
+    let edit_menu = {
+        #[cfg(target_os = "macos")]
+        {
+            let select_all = tauri::menu::PredefinedMenuItem::select_all(app, Some("Select All"))?;
+
+            SubmenuBuilder::new(app, "Edit")
+                .item(&copy)
+                .item(&select_all)
+                .separator()
+                .item(&search)
+                .build()?
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            SubmenuBuilder::new(app, "Edit")
+                .item(&copy)
+                .separator()
+                .item(&search)
+                .build()?
+        }
+    };
 
     // View menu
     let zoom_in = MenuItemBuilder::with_id("zoom-in", "Zoom In")
@@ -95,11 +118,42 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
     let menu = {
         #[cfg(target_os = "macos")]
         {
-            // On macOS, create app menu with About and Quit
+            use tauri::menu::{AboutMetadataBuilder, PredefinedMenuItem};
+
+            let about = PredefinedMenuItem::about(
+                app,
+                Some("About mdview"),
+                Some(
+                    AboutMetadataBuilder::new()
+                        .name(Some("mdview"))
+                        .version(Some(env!("CARGO_PKG_VERSION")))
+                        .copyright(Some("Copyright (c) 2025 David Eidelman"))
+                        .build(),
+                ),
+            )?;
+            let services = PredefinedMenuItem::services(app, Some("Services"))?;
+            let hide = PredefinedMenuItem::hide(app, Some("Hide mdview"))?;
+            let hide_others = PredefinedMenuItem::hide_others(app, Some("Hide Others"))?;
+            let show_all = PredefinedMenuItem::show_all(app, Some("Show All"))?;
+            let quit = PredefinedMenuItem::quit(app, Some("Quit mdview"))?;
+            let minimize = PredefinedMenuItem::minimize(app, Some("Minimize"))?;
+            let close_window = PredefinedMenuItem::close_window(app, Some("Close Window"))?;
+
             let app_menu = SubmenuBuilder::new(app, "mdview")
                 .item(&about)
                 .separator()
+                .item(&services)
+                .separator()
+                .item(&hide)
+                .item(&hide_others)
+                .item(&show_all)
+                .separator()
                 .item(&quit)
+                .build()?;
+
+            let window_menu = SubmenuBuilder::new(app, "Window")
+                .item(&minimize)
+                .item(&close_window)
                 .build()?;
 
             MenuBuilder::new(app)
@@ -107,6 +161,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .item(&file_menu)
                 .item(&edit_menu)
                 .item(&view_menu)
+                .item(&window_menu)
                 .build()?
         }
 
