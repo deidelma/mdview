@@ -4,10 +4,26 @@ use crate::launch;
 use crate::menu;
 use crate::state::AppState;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use tauri::{DragDropEvent, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use tauri::{DragDropEvent, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const MAIN_WINDOW_LABEL: &str = "main";
+static APP_READY: AtomicBool = AtomicBool::new(false);
+static PENDING_OPENED_PATH: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+
+fn pending_opened_path() -> &'static Mutex<Option<String>> {
+    PENDING_OPENED_PATH.get_or_init(|| Mutex::new(None))
+}
+
+fn stash_opened_path(path: String) {
+    let mut pending_path = pending_opened_path().lock().unwrap();
+    *pending_path = Some(path);
+}
+
+fn take_stashed_opened_path() -> Option<String> {
+    pending_opened_path().lock().unwrap().take()
+}
 
 fn focus_window(window: &WebviewWindow) {
     let _ = window.unminimize();
@@ -59,6 +75,48 @@ fn load_and_emit_document(app: &tauri::AppHandle, window_label: &str, path: &str
                 eprintln!("Failed to load file '{}': {}", path, error);
             }
         }
+    }
+}
+
+fn select_opened_markdown_path(urls: &[Url]) -> Option<String> {
+    urls.iter().find_map(|url| {
+        let path = url.to_file_path().ok()?;
+        launch::is_markdown_file(&path).then(|| path.display().to_string())
+    })
+}
+
+fn handle_opened_path(app: &tauri::AppHandle, path: &str) {
+    if !APP_READY.load(Ordering::SeqCst) {
+        stash_opened_path(path.to_string());
+        return;
+    }
+
+    if let Some(window_label) = existing_window_label(app) {
+        load_and_emit_document(app, &window_label, path);
+        focus_existing_window(app);
+    } else {
+        stash_opened_path(path.to_string());
+    }
+}
+
+fn schedule_opened_urls(app: &tauri::AppHandle, urls: &[Url]) {
+    let Some(path) = select_opened_markdown_path(urls) else {
+        return;
+    };
+
+    let dispatch_handle = app.clone();
+    let worker_handle = app.clone();
+
+    if let Err(error) = dispatch_handle.run_on_main_thread(move || {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            handle_opened_path(&worker_handle, &path);
+        }));
+
+        if result.is_err() {
+            eprintln!("Failed to handle macOS opened-file event without panicking");
+        }
+    }) {
+        eprintln!("Failed to schedule macOS opened-file event: {}", error);
     }
 }
 
@@ -131,7 +189,7 @@ fn create_document_window(app: &tauri::AppHandle, path: &Path) -> Result<(), Str
 ///
 /// * `initial_file` - Optional path to a Markdown file to load at startup
 pub fn run(initial_file: Option<String>) {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -164,8 +222,10 @@ pub fn run(initial_file: Option<String>) {
                 register_window_handlers(&window);
             }
 
+            APP_READY.store(true, Ordering::SeqCst);
+
             // Load initial file if provided
-            if let Some(file_path) = initial_file {
+            if let Some(file_path) = initial_file.or_else(take_stashed_opened_path) {
                 load_and_emit_document(&app_handle, MAIN_WINDOW_LABEL, &file_path);
             }
 
@@ -182,6 +242,13 @@ pub fn run(initial_file: Option<String>) {
             commands::navigate_previous,
             commands::navigate_next,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Opened { urls } = event {
+            schedule_opened_urls(app_handle, &urls);
+        }
+    });
 }
