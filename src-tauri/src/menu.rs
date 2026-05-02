@@ -15,6 +15,14 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
 
+    let save = MenuItemBuilder::with_id("save", "Save")
+        .accelerator("CmdOrCtrl+S")
+        .build(app)?;
+
+    let save_as = MenuItemBuilder::with_id("save-as", "Save As...")
+        .accelerator("CmdOrCtrl+Shift+S")
+        .build(app)?;
+
     let prev_file = MenuItemBuilder::with_id("prev-file", "Previous File")
         .accelerator("CmdOrCtrl+Left")
         .build(app)?;
@@ -43,6 +51,8 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
 
             SubmenuBuilder::new(app, "File")
                 .item(&open)
+                .item(&save)
+                .item(&save_as)
                 .separator()
                 .item(&prev_file)
                 .item(&next_file)
@@ -56,6 +66,8 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
             // On Windows/Linux, File menu has Open and Quit
             SubmenuBuilder::new(app, "File")
                 .item(&open)
+                .item(&save)
+                .item(&save_as)
                 .separator()
                 .item(&prev_file)
                 .item(&next_file)
@@ -74,6 +86,10 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+F")
         .build(app)?;
 
+    let toggle_edit = MenuItemBuilder::with_id("toggle-edit", "Toggle Edit Mode")
+        .accelerator("CmdOrCtrl+E")
+        .build(app)?;
+
     let edit_menu = {
         #[cfg(target_os = "macos")]
         {
@@ -84,6 +100,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .item(&select_all)
                 .separator()
                 .item(&search)
+                .item(&toggle_edit)
                 .build()?
         }
 
@@ -93,6 +110,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
                 .item(&copy)
                 .separator()
                 .item(&search)
+                .item(&toggle_edit)
                 .build()?
         }
     };
@@ -184,6 +202,16 @@ pub fn setup_menu_handlers<R: Runtime>(window: &WebviewWindow<R>) {
                     eprintln!("Failed to emit menu-open event: {}", e);
                 }
             }
+            "save" => {
+                if let Err(e) = window.emit("menu-save", ()) {
+                    eprintln!("Failed to emit menu-save event: {}", e);
+                }
+            }
+            "save-as" => {
+                if let Err(e) = window.emit("menu-save-as", ()) {
+                    eprintln!("Failed to emit menu-save-as event: {}", e);
+                }
+            }
             "prev-file" => {
                 if let Err(e) = window.emit("menu-prev-file", ()) {
                     eprintln!("Failed to emit menu-prev-file event: {}", e);
@@ -205,6 +233,11 @@ pub fn setup_menu_handlers<R: Runtime>(window: &WebviewWindow<R>) {
             "search" => {
                 if let Err(e) = window.emit("menu-search", ()) {
                     eprintln!("Failed to emit menu-search event: {}", e);
+                }
+            }
+            "toggle-edit" => {
+                if let Err(e) = window.emit("menu-toggle-edit", ()) {
+                    eprintln!("Failed to emit menu-toggle-edit event: {}", e);
                 }
             }
             "zoom-in" => {

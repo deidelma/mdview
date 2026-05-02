@@ -6,7 +6,9 @@ use crate::state::AppState;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use tauri::{DragDropEvent, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    DragDropEvent, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 static APP_READY: AtomicBool = AtomicBool::new(false);
@@ -234,7 +236,9 @@ pub fn run(initial_file: Option<String>) {
         .invoke_handler(tauri::generate_handler![
             commands::get_about_info,
             commands::open_document,
+            commands::parse_markdown,
             commands::reload_document,
+            commands::save_document,
             commands::set_zoom_factor,
             commands::get_zoom_factor,
             commands::get_current_document,

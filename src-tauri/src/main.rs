@@ -1,14 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use clap::Parser;
-
-mod app;
-mod commands;
-mod history;
-mod launch;
-mod md;
-mod menu;
-mod state;
+use mdview::{app, launch};
 
 /// A lightweight cross-platform Markdown viewer
 #[derive(Parser, Debug)]
