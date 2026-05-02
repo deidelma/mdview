@@ -100,6 +100,22 @@ The release binary will be located at:
 - **macOS/Linux**: `target/release/mdview`
 - **Windows**: `target\release\mdview.exe`
 
+On macOS, the same release build also produces a standalone wrapper command outside the app bundle:
+- **Wrapper command**: `target/release/mdview-open`
+
+This wrapper launches the macOS app binary directly instead of going through `/usr/bin/open`, so it supports creating new files that do not exist yet:
+
+```bash
+# Opens a blank dirty draft for hello.md
+./target/release/mdview-open hello
+
+# Opens a blank dirty draft for notes/today.md
+./target/release/mdview-open notes/today
+
+# Opens an existing file unchanged
+./target/release/mdview-open README.md
+```
+
 ### Platform-Specific Builds
 
 #### macOS Application Bundle
@@ -121,6 +137,11 @@ The bundle outputs are written to the workspace target directory:
 ```
 target/release/bundle/macos/mdview.app
 target/release/bundle/dmg/mdview_0.15.3_*.dmg
+```
+
+The standalone wrapper can be distributed alongside the app bundle or copied into a directory on your `PATH`:
+```
+target/release/mdview-open
 ```
 
 #### Linux Package

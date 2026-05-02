@@ -15,16 +15,25 @@ pub struct MarkdownDocument {
     pub html_content: String,
     /// The extracted table of contents
     pub toc: Vec<TocItem>,
+    /// Whether the document currently exists on disk.
+    pub is_saved_to_disk: bool,
 }
 
 impl MarkdownDocument {
     /// Creates a new MarkdownDocument instance.
-    pub fn new(path: String, raw_content: String, html_content: String, toc: Vec<TocItem>) -> Self {
+    pub fn new(
+        path: String,
+        raw_content: String,
+        html_content: String,
+        toc: Vec<TocItem>,
+        is_saved_to_disk: bool,
+    ) -> Self {
         Self {
             path,
             raw_content,
             html_content,
             toc,
+            is_saved_to_disk,
         }
     }
 
@@ -35,6 +44,7 @@ impl MarkdownDocument {
             raw_content: String::new(),
             html_content: String::new(),
             toc: Vec::new(),
+            is_saved_to_disk: false,
         }
     }
 
@@ -60,15 +70,33 @@ impl MarkdownDocument {
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, loader::MdLoadError> {
         let path_str = path.as_ref().display().to_string();
         let raw_content = loader::load_markdown_file(&path)?;
-        Ok(Self::from_source(path_str, raw_content))
+        Ok(Self::from_saved_source(path_str, raw_content))
     }
 
     /// Constructs a MarkdownDocument from in-memory Markdown source.
     pub fn from_source(path: String, raw_content: String) -> Self {
+        Self::from_saved_source(path, raw_content)
+    }
+
+    /// Constructs a MarkdownDocument from in-memory Markdown source backed by a saved file.
+    pub fn from_saved_source(path: String, raw_content: String) -> Self {
+        Self::from_source_with_save_state(path, raw_content, true)
+    }
+
+    /// Constructs a MarkdownDocument for a path that does not yet exist on disk.
+    pub fn from_unsaved_source(path: String, raw_content: String) -> Self {
+        Self::from_source_with_save_state(path, raw_content, false)
+    }
+
+    fn from_source_with_save_state(
+        path: String,
+        raw_content: String,
+        is_saved_to_disk: bool,
+    ) -> Self {
         let html_content = parser::markdown_to_html(&raw_content);
         let toc = toc::extract_toc(&raw_content);
 
-        Self::new(path, raw_content, html_content, toc)
+        Self::new(path, raw_content, html_content, toc, is_saved_to_disk)
     }
 }
 
@@ -118,12 +146,14 @@ mod tests {
             "# Hello".to_string(),
             "<h1>Hello</h1>".to_string(),
             vec![],
+            true,
         );
 
         assert_eq!(doc.path, "test.md");
         assert_eq!(doc.raw_content, "# Hello");
         assert_eq!(doc.html_content, "<h1>Hello</h1>");
         assert!(doc.toc.is_empty());
+        assert!(doc.is_saved_to_disk);
     }
 
     #[test]
@@ -134,6 +164,7 @@ mod tests {
         assert!(doc.raw_content.is_empty());
         assert!(doc.html_content.is_empty());
         assert!(doc.toc.is_empty());
+        assert!(!doc.is_saved_to_disk);
     }
 
     #[test]
@@ -176,6 +207,7 @@ mod tests {
             "# Title".to_string(),
             "<h1>Title</h1>".to_string(),
             vec![TocItem::new(1, "Title".to_string(), "title".to_string())],
+            true,
         );
 
         // Test that serialization works (will be used for Tauri commands)
@@ -201,5 +233,15 @@ mod tests {
         assert_eq!(doc.toc.len(), 2);
         assert_eq!(doc.toc[0].id, "title");
         assert_eq!(doc.toc[1].id, "section");
+        assert!(doc.is_saved_to_disk);
+    }
+
+    #[test]
+    fn test_markdown_document_from_unsaved_source_is_marked_unsaved() {
+        let doc = MarkdownDocument::from_unsaved_source("draft.md".to_string(), String::new());
+
+        assert_eq!(doc.path, "draft.md");
+        assert!(doc.raw_content.is_empty());
+        assert!(!doc.is_saved_to_disk);
     }
 }

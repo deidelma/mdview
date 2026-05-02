@@ -48,6 +48,7 @@ function createDocument(path: string, source = '# Title'): MarkdownDocument {
     raw_content: source,
     html_content: `<h1 id="title">Title</h1><p>${source}</p>`,
     toc: [{ level: 1, text: 'Title', id: 'title' }],
+    is_saved_to_disk: true,
   };
 }
 
@@ -120,7 +121,7 @@ describe('initializeApp', () => {
 
     expect(invoke).toHaveBeenCalledWith('parse_markdown', { path: '/docs/guide.md', source: '# Updated' });
     expect((document.getElementById('btn-save') as HTMLButtonElement).disabled).toBe(false);
-    expect(document.title.endsWith('*')).toBe(true);
+    expect(document.title).toBe('mdview - guide.md*');
   });
 
   it('saves the edited document and clears dirty state', async () => {
@@ -212,5 +213,77 @@ describe('initializeApp', () => {
     await Promise.resolve();
 
     expect(openFileDialog).not.toHaveBeenCalled();
+  });
+
+  it('opens an unsaved startup draft in edit mode and keeps save enabled', async () => {
+    const fakeWindow = new FakeWindow();
+    const initialDocument = { ...createDocument('/docs/draft.md', ''), is_saved_to_disk: false };
+    const focus = vi.fn();
+
+    const invoke = vi.fn(async (command: string) => {
+      if (command === 'get_zoom_factor') return 1;
+      if (command === 'get_current_document') return initialDocument;
+      if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      throw new Error(`Unexpected command ${command}`);
+    });
+
+    await initializeApp({
+      document,
+      window,
+      currentWindow: fakeWindow,
+      invoke,
+      openFileDialog: vi.fn(async () => null),
+      saveFileDialog: vi.fn(async () => null),
+      openExternalUrl: vi.fn(async () => undefined),
+      createEditor: () => ({
+        setValue() {},
+        getValue() { return ''; },
+        focus,
+        setEditable() {},
+        destroy() {},
+      } as MarkdownEditorController),
+    });
+
+    expect((document.getElementById('btn-save') as HTMLButtonElement).disabled).toBe(false);
+    expect((document.getElementById('btn-reload') as HTMLButtonElement).disabled).toBe(true);
+    expect(document.title.endsWith('*')).toBe(true);
+    expect((document.getElementById('btn-toggle-edit') as HTMLButtonElement).textContent).toBe('Preview');
+    expect(focus).toHaveBeenCalled();
+  });
+
+  it('saves an unsaved startup draft to the CLI-provided path', async () => {
+    const fakeWindow = new FakeWindow();
+    const initialDocument = { ...createDocument('/docs/draft.md', ''), is_saved_to_disk: false };
+    const savedDocument = createDocument('/docs/draft.md', '');
+
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === 'get_zoom_factor') return 1;
+      if (command === 'get_current_document') return initialDocument;
+      if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'save_document') return { ...savedDocument, raw_content: String(args?.source ?? '') };
+      throw new Error(`Unexpected command ${command}`);
+    });
+
+    await initializeApp({
+      document,
+      window,
+      currentWindow: fakeWindow,
+      invoke,
+      openFileDialog: vi.fn(async () => null),
+      saveFileDialog: vi.fn(async () => null),
+      openExternalUrl: vi.fn(async () => undefined),
+      createEditor: () => ({
+        setValue() {},
+        getValue() { return ''; },
+        focus() {},
+        setEditable() {},
+        destroy() {},
+      } as MarkdownEditorController),
+    });
+
+    (document.getElementById('btn-save') as HTMLButtonElement).click();
+    await Promise.resolve();
+
+    expect(invoke).toHaveBeenCalledWith('save_document', { path: '/docs/draft.md', source: '' });
   });
 });

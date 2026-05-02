@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{
     DragDropEvent, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 static APP_READY: AtomicBool = AtomicBool::new(false);
@@ -61,6 +62,104 @@ fn emit_load_error_to_window(app: &tauri::AppHandle, window_label: &str, message
     }
 }
 
+enum LaunchDocumentTarget {
+    Existing(String),
+    Draft(String),
+}
+
+fn suggest_markdown_file_name(path: &Path) -> String {
+    match path.file_stem().and_then(|stem| stem.to_str()) {
+        Some(stem) if !stem.is_empty() => format!("{}.md", stem),
+        _ => "untitled.md".to_string(),
+    }
+}
+
+fn prompt_for_valid_new_document_path(app: &tauri::AppHandle, initial_path: &Path) -> Option<String> {
+    let mut candidate = initial_path.to_path_buf();
+
+    loop {
+        if launch::is_valid_new_document_path(&candidate) {
+            return Some(candidate.display().to_string());
+        }
+
+        let choose_new_name = app
+            .dialog()
+            .message(format!(
+                "The file name '{}' cannot be used for a new Markdown document. New files must have no extension or end with .md.",
+                candidate.display()
+            ))
+            .title("Invalid Markdown File Name")
+            .kind(MessageDialogKind::Warning)
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Choose Name".to_string(),
+                "Quit".to_string(),
+            ))
+            .blocking_show();
+
+        if !choose_new_name {
+            return None;
+        }
+
+        let mut dialog = app
+            .dialog()
+            .file()
+            .set_title("Choose a Markdown file name")
+            .add_filter("Markdown", &["md"])
+            .set_file_name(suggest_markdown_file_name(&candidate));
+
+        if let Some(parent) = candidate.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+            dialog = dialog.set_directory(parent);
+        }
+
+        let selected = dialog.blocking_save_file()?;
+        candidate = selected.into_path().ok()?;
+    }
+}
+
+fn resolve_launch_document_target(app: &tauri::AppHandle, path: &str) -> Option<LaunchDocumentTarget> {
+    let path = PathBuf::from(path);
+
+    if path.exists() {
+        return launch::is_markdown_file(&path)
+            .then(|| LaunchDocumentTarget::Existing(path.display().to_string()));
+    }
+
+    if launch::is_valid_new_document_path(&path) {
+        return Some(LaunchDocumentTarget::Draft(path.display().to_string()));
+    }
+
+    let app_handle = app.clone();
+    let candidate = path.clone();
+    std::thread::spawn(move || prompt_for_valid_new_document_path(&app_handle, &candidate))
+        .join()
+        .ok()
+        .flatten()
+        .map(LaunchDocumentTarget::Draft)
+}
+
+fn set_draft_and_emit_document(app: &tauri::AppHandle, window_label: &str, path: &str) {
+    let state = app.state::<AppState>();
+    let document = commands::create_unsaved_document_into_state(state.inner(), window_label, path);
+
+    if let Some(window) = app.get_webview_window(window_label) {
+        commands::emit_document_loaded(&window, &document);
+    }
+}
+
+fn load_launch_document(app: &tauri::AppHandle, window_label: &str, path: &str) -> bool {
+    match resolve_launch_document_target(app, path) {
+        Some(LaunchDocumentTarget::Existing(path)) => {
+            load_and_emit_document(app, window_label, &path);
+            true
+        }
+        Some(LaunchDocumentTarget::Draft(path)) => {
+            set_draft_and_emit_document(app, window_label, &path);
+            true
+        }
+        None => false,
+    }
+}
+
 fn load_and_emit_document(app: &tauri::AppHandle, window_label: &str, path: &str) {
     let state = app.state::<AppState>();
 
@@ -94,8 +193,9 @@ fn handle_opened_path(app: &tauri::AppHandle, path: &str) {
     }
 
     if let Some(window_label) = existing_window_label(app) {
-        load_and_emit_document(app, &window_label, path);
-        focus_existing_window(app);
+        if load_launch_document(app, &window_label, path) {
+            focus_existing_window(app);
+        }
     } else {
         stash_opened_path(path.to_string());
     }
@@ -199,7 +299,10 @@ pub fn run(initial_file: Option<String>) {
                 launch::select_relaunch_file(&argv),
                 existing_window_label(app),
             ) {
-                load_and_emit_document(app, &window_label, &file_path);
+                if !load_launch_document(app, &window_label, &file_path) {
+                    app.exit(0);
+                    return;
+                }
             }
             focus_existing_window(app);
         }))
@@ -228,7 +331,9 @@ pub fn run(initial_file: Option<String>) {
 
             // Load initial file if provided
             if let Some(file_path) = initial_file.or_else(take_stashed_opened_path) {
-                load_and_emit_document(&app_handle, MAIN_WINDOW_LABEL, &file_path);
+                if !load_launch_document(&app_handle, MAIN_WINDOW_LABEL, &file_path) {
+                    app_handle.exit(0);
+                }
             }
 
             Ok(())
