@@ -41,17 +41,8 @@ fn build_about_info() -> AboutInfo {
     }
 }
 
-pub(crate) fn load_document_into_state(
-    app: &AppHandle,
-    state: &AppState,
-    window_label: &str,
-    path: &str,
-) -> Result<MarkdownDocument, MdLoadError> {
-    let document = MarkdownDocument::from_file(path)?;
-    state.set_current_document(window_label, document.clone());
-
-    let mut history = state.file_history.lock().unwrap();
-    history.add(path.to_string());
+fn persist_file_history(app: &AppHandle, window_label: &str, state: &AppState) {
+    let history = state.file_history.lock().unwrap();
 
     if let Ok(config_dir) = app.path().app_config_dir() {
         if let Err(e) = history.save(&config_dir) {
@@ -66,6 +57,47 @@ pub(crate) fn load_document_into_state(
             }
         }
     }
+}
+
+fn document_from_source(path: String, raw_content: String) -> MarkdownDocument {
+    MarkdownDocument::from_source(path, raw_content)
+}
+
+pub(crate) fn save_document_into_state(
+    app: &AppHandle,
+    state: &AppState,
+    window_label: &str,
+    path: &str,
+    raw_content: &str,
+) -> Result<MarkdownDocument, MdLoadError> {
+    crate::md::loader::save_markdown_file(path, raw_content)?;
+
+    let document = document_from_source(path.to_string(), raw_content.to_string());
+    state.set_current_document(window_label, document.clone());
+
+    {
+        let mut history = state.file_history.lock().unwrap();
+        history.add(path.to_string());
+    }
+    persist_file_history(app, window_label, state);
+
+    Ok(document)
+}
+
+pub(crate) fn load_document_into_state(
+    app: &AppHandle,
+    state: &AppState,
+    window_label: &str,
+    path: &str,
+) -> Result<MarkdownDocument, MdLoadError> {
+    let document = MarkdownDocument::from_file(path)?;
+    state.set_current_document(window_label, document.clone());
+
+    {
+        let mut history = state.file_history.lock().unwrap();
+        history.add(path.to_string());
+    }
+    persist_file_history(app, window_label, state);
 
     Ok(document)
 }
@@ -92,6 +124,14 @@ pub(crate) fn emit_document_error_message(window: &WebviewWindow, message: &str)
 #[tauri::command]
 pub async fn get_about_info() -> AboutInfo {
     build_about_info()
+}
+
+#[tauri::command]
+pub async fn parse_markdown(
+    path: String,
+    source: String,
+) -> Result<MarkdownDocument, CommandError> {
+    Ok(document_from_source(path, source))
 }
 
 /// Opens and loads a Markdown document.
@@ -150,6 +190,24 @@ pub async fn reload_document(
     state.set_current_document(window.label(), document.clone());
 
     Ok(document)
+}
+
+/// Saves the current Markdown source to disk and updates window state.
+#[tauri::command]
+pub async fn save_document(
+    path: String,
+    source: String,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<MarkdownDocument, CommandError> {
+    Ok(save_document_into_state(
+        &app,
+        state.inner(),
+        window.label(),
+        &path,
+        &source,
+    )?)
 }
 
 /// Sets the zoom factor for the document view.
@@ -289,22 +347,7 @@ pub async fn navigate_previous(
             state.set_current_document(window.label(), document.clone());
 
             // Save history (position changed)
-            {
-                let history = state.file_history.lock().unwrap();
-                if let Ok(config_dir) = app.path().app_config_dir() {
-                    if let Err(e) = history.save(&config_dir) {
-                        eprintln!("Failed to save file history: {}", e);
-                        if let Some(window) = app.get_webview_window(window.label()) {
-                            use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-                            let _ = window
-                                .dialog()
-                                .message(&format!("Failed to save file history: {}", e))
-                                .kind(MessageDialogKind::Error)
-                                .blocking_show();
-                        }
-                    }
-                }
-            }
+            persist_file_history(&app, window.label(), state.inner());
 
             Ok(document)
         }
@@ -358,22 +401,7 @@ pub async fn navigate_next(
             state.set_current_document(window.label(), document.clone());
 
             // Save history (position changed)
-            {
-                let history = state.file_history.lock().unwrap();
-                if let Ok(config_dir) = app.path().app_config_dir() {
-                    if let Err(e) = history.save(&config_dir) {
-                        eprintln!("Failed to save file history: {}", e);
-                        if let Some(window) = app.get_webview_window(window.label()) {
-                            use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-                            let _ = window
-                                .dialog()
-                                .message(&format!("Failed to save file history: {}", e))
-                                .kind(MessageDialogKind::Error)
-                                .blocking_show();
-                        }
-                    }
-                }
-            }
+            persist_file_history(&app, window.label(), state.inner());
 
             Ok(document)
         }

@@ -51,6 +51,25 @@ pub fn load_markdown_file<P: AsRef<Path>>(path: P) -> Result<String, MdLoadError
     String::from_utf8(bytes).map_err(|_| MdLoadError::InvalidUtf8(path_ref.display().to_string()))
 }
 
+/// Saves Markdown content to the filesystem as UTF-8.
+///
+/// # Arguments
+///
+/// * `path` - The file path to save
+/// * `content` - The Markdown content to write
+pub fn save_markdown_file<P: AsRef<Path>>(path: P, content: &str) -> Result<(), MdLoadError> {
+    let path_ref = path.as_ref();
+
+    if let Some(parent) = path_ref.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+
+    fs::write(path_ref, content.as_bytes())?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +123,26 @@ mod tests {
         let result = load_markdown_file(temp_file.path());
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "");
+    }
+
+    #[test]
+    fn test_save_markdown_file_writes_utf8_content() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let content = "# Saved\n\nThis was written by a test.";
+
+        save_markdown_file(temp_file.path(), content).unwrap();
+
+        let saved = fs::read_to_string(temp_file.path()).unwrap();
+        assert_eq!(saved, content);
+    }
+
+    #[test]
+    fn test_save_markdown_file_creates_parent_directories() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let nested_path = temp_dir.path().join("nested").join("notes.md");
+
+        save_markdown_file(&nested_path, "# Nested").unwrap();
+
+        assert_eq!(fs::read_to_string(nested_path).unwrap(), "# Nested");
     }
 }

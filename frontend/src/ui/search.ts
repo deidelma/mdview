@@ -1,189 +1,210 @@
-let searchMatches: HTMLElement[] = [];
-let currentMatchIndex = -1;
+export interface SearchController {
+    show(): void;
+    hide(): void;
+    focus(): void;
+    refresh(): void;
+    clear(): void;
+    getQuery(): string;
+}
 
-/**
- * Initializes the search functionality.
- */
-export function initializeSearch() {
-    const searchInput = document.getElementById('search-input') as HTMLInputElement;
-    const btnSearchPrev = document.getElementById('btn-search-prev')!;
-    const btnSearchNext = document.getElementById('btn-search-next')!;
-    const btnSearchClose = document.getElementById('btn-search-close')!;
-    const searchResults = document.getElementById('search-results')!;
-    const searchBar = document.getElementById('search-bar')!;
-    
-    // Search on input
-    searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim();
-        if (query.length > 0) {
-            performSearch(query);
-            updateSearchResults(searchResults);
-        } else {
-            clearSearch();
-            searchResults.textContent = '';
+export interface SearchHighlightResult {
+    matches: HTMLElement[];
+    currentMatchIndex: number;
+}
+
+function escapeSearchPattern(query: string) {
+    return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function clearSearchHighlights(container: HTMLElement) {
+    container.querySelectorAll('.search-highlight').forEach((highlight) => {
+        const parent = highlight.parentNode;
+        if (!parent) {
+            return;
         }
+
+        parent.replaceChild(container.ownerDocument.createTextNode(highlight.textContent || ''), highlight);
+        parent.normalize();
     });
-    
-    // Search on Enter key
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            if (e.shiftKey) {
+}
+
+export function highlightSearchResults(container: HTMLElement, query: string): SearchHighlightResult {
+    clearSearchHighlights(container);
+
+    if (!query.trim()) {
+        return { matches: [], currentMatchIndex: -1 };
+    }
+
+    const pattern = new RegExp(escapeSearchPattern(query), 'gi');
+    const matches: HTMLElement[] = [];
+    const walker = container.ownerDocument.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const nodesToReplace: Array<{ node: Node; parent: Node }> = [];
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const text = node.textContent || '';
+        const parentElement = node.parentElement;
+
+        if (!parentElement || parentElement.tagName === 'SCRIPT' || parentElement.tagName === 'STYLE') {
+            continue;
+        }
+
+        if (new RegExp(escapeSearchPattern(query), 'i').test(text) && node.parentNode) {
+            nodesToReplace.push({ node, parent: node.parentNode });
+        }
+    }
+
+    for (const { node, parent } of nodesToReplace) {
+        const text = node.textContent || '';
+        const fragment = container.ownerDocument.createDocumentFragment();
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        pattern.lastIndex = 0;
+        while ((match = pattern.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                fragment.appendChild(container.ownerDocument.createTextNode(text.slice(lastIndex, match.index)));
+            }
+
+            const span = container.ownerDocument.createElement('span');
+            span.className = 'search-highlight';
+            span.textContent = match[0];
+            fragment.appendChild(span);
+            matches.push(span);
+            lastIndex = match.index + match[0].length;
+        }
+
+        if (lastIndex < text.length) {
+            fragment.appendChild(container.ownerDocument.createTextNode(text.slice(lastIndex)));
+        }
+
+        parent.replaceChild(fragment, node);
+    }
+
+    if (matches.length > 0) {
+        matches[0].classList.add('current');
+        return { matches, currentMatchIndex: 0 };
+    }
+
+    return { matches, currentMatchIndex: -1 };
+}
+
+export function initializeSearch(options: {
+    document?: Document;
+    getContainer: () => HTMLElement;
+}): SearchController {
+    const doc = options.document ?? document;
+    const searchInput = doc.getElementById('search-input') as HTMLInputElement;
+    const btnSearchPrev = doc.getElementById('btn-search-prev') as HTMLButtonElement;
+    const btnSearchNext = doc.getElementById('btn-search-next') as HTMLButtonElement;
+    const btnSearchClose = doc.getElementById('btn-search-close') as HTMLButtonElement;
+    const searchResults = doc.getElementById('search-results') as HTMLElement;
+    const searchBar = doc.getElementById('search-bar') as HTMLElement;
+
+    let searchMatches: HTMLElement[] = [];
+    let currentMatchIndex = -1;
+
+    function updateSearchResults() {
+        searchResults.textContent = searchMatches.length > 0 ? `${currentMatchIndex + 1} of ${searchMatches.length}` : 'No matches';
+    }
+
+    function highlightCurrentMatch() {
+        searchMatches.forEach((match, index) => {
+            const isCurrent = index === currentMatchIndex;
+            match.classList.toggle('current', isCurrent);
+            if (isCurrent) {
+                match.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
+
+    function applySearch() {
+        const { matches, currentMatchIndex: nextCurrentIndex } = highlightSearchResults(options.getContainer(), searchInput.value.trim());
+        searchMatches = matches;
+        currentMatchIndex = nextCurrentIndex;
+        updateSearchResults();
+    }
+
+    function navigateToNextMatch() {
+        if (searchMatches.length === 0) {
+            return;
+        }
+
+        currentMatchIndex = (currentMatchIndex + 1) % searchMatches.length;
+        highlightCurrentMatch();
+        updateSearchResults();
+    }
+
+    function navigateToPrevMatch() {
+        if (searchMatches.length === 0) {
+            return;
+        }
+
+        currentMatchIndex = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
+        highlightCurrentMatch();
+        updateSearchResults();
+    }
+
+    searchInput.addEventListener('input', applySearch);
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            if (event.shiftKey) {
                 navigateToPrevMatch();
             } else {
                 navigateToNextMatch();
             }
-        } else if (e.key === 'Escape') {
-            searchBar.style.display = 'none';
-            clearSearch();
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            searchBar.hidden = true;
+            clearSearchHighlights(options.getContainer());
+            searchMatches = [];
+            currentMatchIndex = -1;
+            searchInput.value = '';
+            searchResults.textContent = '';
         }
     });
-    
-    // Navigation buttons
+
     btnSearchPrev.addEventListener('click', navigateToPrevMatch);
     btnSearchNext.addEventListener('click', navigateToNextMatch);
-    
-    // Close button
     btnSearchClose.addEventListener('click', () => {
-        searchBar.style.display = 'none';
-        clearSearch();
+        searchBar.hidden = true;
+        clearSearchHighlights(options.getContainer());
+        searchMatches = [];
+        currentMatchIndex = -1;
         searchInput.value = '';
+        searchResults.textContent = '';
     });
-}
 
-/**
- * Performs a search in the markdown content.
- */
-function performSearch(query: string) {
-    clearSearch();
-    
-    const markdownContainer = document.getElementById('markdown-container')!;
-    const content = markdownContainer.textContent || '';
-    
-    if (!content || !query) return;
-    
-    // Create a case-insensitive regex
-    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    
-    // Walk through text nodes and highlight matches
-    const walker = document.createTreeWalker(
-        markdownContainer,
-        NodeFilter.SHOW_TEXT,
-        null
-    );
-    
-    const nodesToReplace: { node: Node; parent: Node }[] = [];
-    
-    while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const text = node.textContent || '';
-        
-        if (regex.test(text) && node.parentElement?.tagName !== 'SCRIPT' && node.parentElement?.tagName !== 'STYLE') {
-            nodesToReplace.push({ node, parent: node.parentNode! });
-        }
-    }
-    
-    // Replace text nodes with highlighted spans
-    nodesToReplace.forEach(({ node, parent }) => {
-        const text = node.textContent || '';
-        const fragment = document.createDocumentFragment();
-        let lastIndex = 0;
-        
-        const localRegex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        let match;
-        
-        while ((match = localRegex.exec(text)) !== null) {
-            // Add text before match
-            if (match.index > lastIndex) {
-                fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+    return {
+        show() {
+            searchBar.hidden = false;
+            searchInput.focus();
+            applySearch();
+        },
+        hide() {
+            searchBar.hidden = true;
+        },
+        focus() {
+            searchInput.focus();
+        },
+        refresh() {
+            if (searchInput.value.trim()) {
+                applySearch();
+            } else {
+                clearSearchHighlights(options.getContainer());
             }
-            
-            // Add highlighted match
-            const span = document.createElement('span');
-            span.className = 'search-highlight';
-            span.textContent = match[0];
-            fragment.appendChild(span);
-            searchMatches.push(span);
-            
-            lastIndex = match.index + match[0].length;
-        }
-        
-        // Add remaining text
-        if (lastIndex < text.length) {
-            fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-        }
-        
-        parent.replaceChild(fragment, node);
-    });
-    
-    // Highlight first match
-    if (searchMatches.length > 0) {
-        currentMatchIndex = 0;
-        highlightCurrentMatch();
-    }
-}
-
-/**
- * Clears all search highlights.
- */
-function clearSearch() {
-    const markdownContainer = document.getElementById('markdown-container')!;
-    const highlights = markdownContainer.querySelectorAll('.search-highlight');
-    
-    highlights.forEach(highlight => {
-        const parent = highlight.parentNode;
-        if (parent) {
-            parent.replaceChild(document.createTextNode(highlight.textContent || ''), highlight);
-            parent.normalize(); // Merge adjacent text nodes
-        }
-    });
-    
-    searchMatches = [];
-    currentMatchIndex = -1;
-}
-
-/**
- * Navigates to the next search match.
- */
-function navigateToNextMatch() {
-    if (searchMatches.length === 0) return;
-    
-    currentMatchIndex = (currentMatchIndex + 1) % searchMatches.length;
-    highlightCurrentMatch();
-    updateSearchResults(document.getElementById('search-results')!);
-}
-
-/**
- * Navigates to the previous search match.
- */
-function navigateToPrevMatch() {
-    if (searchMatches.length === 0) return;
-    
-    currentMatchIndex = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
-    highlightCurrentMatch();
-    updateSearchResults(document.getElementById('search-results')!);
-}
-
-/**
- * Highlights the current match and scrolls to it.
- */
-function highlightCurrentMatch() {
-    searchMatches.forEach((match, index) => {
-        if (index === currentMatchIndex) {
-            match.classList.add('current');
-            match.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            match.classList.remove('current');
-        }
-    });
-}
-
-/**
- * Updates the search results display.
- */
-function updateSearchResults(element: HTMLElement) {
-    if (searchMatches.length > 0) {
-        element.textContent = `${currentMatchIndex + 1} of ${searchMatches.length}`;
-    } else {
-        element.textContent = 'No matches';
-    }
+        },
+        clear() {
+            clearSearchHighlights(options.getContainer());
+            searchMatches = [];
+            currentMatchIndex = -1;
+            searchInput.value = '';
+            searchResults.textContent = '';
+        },
+        getQuery() {
+            return searchInput.value;
+        },
+    };
 }

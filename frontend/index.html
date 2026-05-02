@@ -9,47 +9,50 @@
 
 <body>
     <div id="app">
-        <!-- Toolbar -->
         <div id="toolbar">
             <button id="btn-open" class="toolbar-btn" title="Open file">
-                <span>📂</span>
                 <span>Open</span>
             </button>
+            <button id="btn-save" class="toolbar-btn" title="Save file" disabled>
+                <span>Save</span>
+            </button>
+            <button id="btn-save-as" class="toolbar-btn" title="Save file as" disabled>
+                <span>Save As</span>
+            </button>
             <button id="btn-reload" class="toolbar-btn" title="Reload file" disabled>
-                <span>🔄</span>
                 <span>Reload</span>
             </button>
             <button id="btn-prev-file" class="toolbar-btn" title="Previous file" disabled>
-                <span>◀</span>
+                <span>&lt;</span>
             </button>
             <button id="btn-next-file" class="toolbar-btn" title="Next file" disabled>
-                <span>▶</span>
+                <span>&gt;</span>
             </button>
             <div class="toolbar-separator"></div>
+            <button id="btn-toggle-edit" class="toolbar-btn" title="Toggle edit mode" disabled>
+                <span>Edit</span>
+            </button>
             <button id="btn-search" class="toolbar-btn" title="Search">
-                <span>🔍</span>
                 <span>Search</span>
             </button>
             <div class="toolbar-separator"></div>
             <button id="btn-zoom-out" class="toolbar-btn" title="Zoom out">
-                <span>➖</span>
+                <span>-</span>
             </button>
             <span id="zoom-level">100%</span>
             <button id="btn-zoom-in" class="toolbar-btn" title="Zoom in">
-                <span>➕</span>
+                <span>+</span>
             </button>
             <button id="btn-zoom-reset" class="toolbar-btn" title="Reset zoom">
-                <span>↺</span>
+                <span>Reset</span>
             </button>
         </div>
 
-        <!-- Main Layout -->
         <div id="main-layout">
-            <!-- Sidebar for TOC -->
             <div id="sidebar">
                 <div id="sidebar-header">
                     <h3>Table of Contents</h3>
-                    <button id="btn-toggle-sidebar" title="Toggle sidebar">◀</button>
+                    <button id="btn-toggle-sidebar" title="Toggle sidebar">&lt;</button>
                 </div>
                 <div id="toc-container">
                     <div id="toc-empty" class="toc-empty">No headings found</div>
@@ -57,23 +60,29 @@
                 </div>
             </div>
 
-            <!-- Resizer -->
             <div id="resizer"></div>
 
-            <!-- Content Area -->
             <div id="content-area">
-                <div id="search-bar" class="search-bar" style="display: none;">
+                <div id="search-bar" class="search-bar" hidden>
                     <input type="text" id="search-input" placeholder="Search...">
-                    <button id="btn-search-prev" title="Previous match">▲</button>
-                    <button id="btn-search-next" title="Next match">▼</button>
+                    <button id="btn-search-prev" title="Previous match">Up</button>
+                    <button id="btn-search-next" title="Next match">Down</button>
                     <span id="search-results"></span>
-                    <button id="btn-search-close" title="Close search">✕</button>
+                    <button id="btn-search-close" title="Close search">Close</button>
                 </div>
-                <div id="markdown-container" class="markdown-content">
-                    <div class="welcome-message">
-                        <h1>Welcome to mdview</h1>
-                        <p>A lightweight Markdown viewer</p>
-                        <p class="hint">Open a file to get started</p>
+                <div id="editor-workspace" data-view-mode="preview">
+                    <div id="editor-pane" class="workspace-pane">
+                        <div id="editor-container"></div>
+                    </div>
+                    <div id="editor-resizer"></div>
+                    <div id="preview-pane" class="workspace-pane">
+                        <div id="markdown-container" class="markdown-content">
+                            <div class="welcome-message">
+                                <h1>Welcome to mdview</h1>
+                                <p>A lightweight Markdown viewer and editor</p>
+                                <p class="hint">Open a file to start reading or editing.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -82,7 +91,7 @@
 
     <div id="about-overlay" class="about-overlay" hidden>
         <div id="about-dialog" class="about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title">
-            <button id="about-close" class="about-close" type="button" aria-label="Close About dialog">✕</button>
+            <button id="about-close" class="about-close" type="button" aria-label="Close About dialog">Close</button>
             <div class="about-header">
                 <img src="/128x128.png" alt="mdview icon" class="about-icon">
                 <div class="about-meta">

@@ -11,5 +11,20 @@ export default defineConfig({
     target: 'esnext',
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@codemirror') || id.includes('/codemirror/')) {
+            return 'editor-vendor';
+          }
+
+          if (id.endsWith('/src/ui/editor.ts')) {
+            return 'editor';
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
 });

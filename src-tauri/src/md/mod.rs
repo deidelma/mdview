@@ -60,10 +60,15 @@ impl MarkdownDocument {
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, loader::MdLoadError> {
         let path_str = path.as_ref().display().to_string();
         let raw_content = loader::load_markdown_file(&path)?;
+        Ok(Self::from_source(path_str, raw_content))
+    }
+
+    /// Constructs a MarkdownDocument from in-memory Markdown source.
+    pub fn from_source(path: String, raw_content: String) -> Self {
         let html_content = parser::markdown_to_html(&raw_content);
         let toc = toc::extract_toc(&raw_content);
 
-        Ok(Self::new(path_str, raw_content, html_content, toc))
+        Self::new(path, raw_content, html_content, toc)
     }
 }
 
@@ -180,5 +185,21 @@ mod tests {
         // Test deserialization
         let deserialized: Result<MarkdownDocument, _> = serde_json::from_str(&json.unwrap());
         assert!(deserialized.is_ok());
+    }
+
+    #[test]
+    fn test_markdown_document_from_source_builds_html_and_toc() {
+        let doc = MarkdownDocument::from_source(
+            "memory.md".to_string(),
+            "# Title\n\n## Section".to_string(),
+        );
+
+        assert_eq!(doc.path, "memory.md");
+        assert_eq!(doc.raw_content, "# Title\n\n## Section");
+        assert!(doc.html_content.contains("<h1"));
+        assert!(doc.html_content.contains("<h2"));
+        assert_eq!(doc.toc.len(), 2);
+        assert_eq!(doc.toc[0].id, "title");
+        assert_eq!(doc.toc[1].id, "section");
     }
 }
