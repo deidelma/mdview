@@ -63,6 +63,20 @@ fn document_from_source(path: String, raw_content: String) -> MarkdownDocument {
     MarkdownDocument::from_source(path, raw_content)
 }
 
+fn unsaved_document_from_source(path: String, raw_content: String) -> MarkdownDocument {
+    MarkdownDocument::from_unsaved_source(path, raw_content)
+}
+
+pub(crate) fn create_unsaved_document_into_state(
+    state: &AppState,
+    window_label: &str,
+    path: &str,
+) -> MarkdownDocument {
+    let document = unsaved_document_from_source(path.to_string(), String::new());
+    state.set_current_document(window_label, document.clone());
+    document
+}
+
 pub(crate) fn save_document_into_state(
     app: &AppHandle,
     state: &AppState,
@@ -174,14 +188,19 @@ pub async fn reload_document(
     window: WebviewWindow,
     state: State<'_, AppState>,
 ) -> Result<MarkdownDocument, CommandError> {
-    // Get the current document path
-    let path = state
+    let current_document = state
         .get_current_document(window.label())
-        .as_ref()
-        .map(|doc| doc.path.clone())
         .ok_or_else(|| CommandError {
             message: "No document is currently loaded".to_string(),
         })?;
+
+    if !current_document.is_saved_to_disk {
+        return Err(CommandError {
+            message: "The current document has not been saved to disk yet".to_string(),
+        });
+    }
+
+    let path = current_document.path;
 
     // Reload the document
     let document = MarkdownDocument::from_file(&path)?;

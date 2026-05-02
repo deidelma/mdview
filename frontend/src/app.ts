@@ -17,6 +17,7 @@ export interface MarkdownDocument {
   raw_content: string;
   html_content: string;
   toc: TocItem[];
+  is_saved_to_disk: boolean;
 }
 
 export interface NavigationState {
@@ -166,13 +167,13 @@ export async function initializeApp(deps: AppDependencies) {
       return;
     }
 
-    const dirtySuffix = isDirty ? ' *' : '';
+    const dirtySuffix = isDirty ? '*' : '';
     doc.title = `mdview - ${getBaseName(currentDocument.path)}${dirtySuffix}`;
   }
 
   function updateActionState() {
     const loaded = hasLoadedDocument();
-    btnReload.disabled = !loaded;
+    btnReload.disabled = !loaded || !savedDocument?.is_saved_to_disk;
     btnSave.disabled = !loaded || !isDirty;
     btnSaveAs.disabled = !loaded;
     btnToggleEdit.disabled = !loaded || isEditorLoading;
@@ -185,7 +186,7 @@ export async function initializeApp(deps: AppDependencies) {
   }
 
   function updateDirtyState() {
-    const nextDirty = draftContent !== (savedDocument?.raw_content ?? '');
+    const nextDirty = !savedDocument?.is_saved_to_disk || draftContent !== (savedDocument?.raw_content ?? '');
     isDirty = nextDirty;
     updateWindowTitle();
     updateActionState();
@@ -277,10 +278,14 @@ export async function initializeApp(deps: AppDependencies) {
     savedDocument = documentToLoad;
     draftContent = documentToLoad.raw_content;
     editor?.setValue(documentToLoad.raw_content);
-    isDirty = false;
+    isDirty = !documentToLoad.is_saved_to_disk;
     renderDocument(documentToLoad);
     updateActionState();
     void updateNavigationState();
+
+    if (!documentToLoad.is_saved_to_disk) {
+      void toggleEditMode(true);
+    }
   }
 
   async function parseDraftPreview(requestPath: string, requestSource: string, requestId: number) {

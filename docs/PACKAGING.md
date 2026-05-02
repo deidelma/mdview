@@ -35,6 +35,18 @@ cargo tauri build --target x86_64-apple-darwin    # Intel
 
 **Output:**
 - `target/release/bundle/macos/mdview.app`
+- `target/release/mdview-open` - standalone CLI wrapper that launches the app directly
+
+**Wrapper usage:**
+```bash
+# Launch the app and create hello.md if it does not exist
+./target/release/mdview-open hello
+
+# Launch the app and open an explicit markdown path
+./target/release/mdview-open hello.md
+```
+
+This wrapper exists because macOS `open -a mdview <missing-path>` fails before the app starts when the path does not already exist.
 
 **Universal Binary** (both architectures):
 ```bash
