@@ -136,6 +136,13 @@ pub(crate) fn emit_document_error_message(window: &WebviewWindow, message: &str)
 }
 
 #[tauri::command]
+pub async fn set_window_title(title: String, window: WebviewWindow) -> Result<(), CommandError> {
+    window.set_title(&title).map_err(|error| CommandError {
+        message: format!("Failed to set window title: {}", error),
+    })
+}
+
+#[tauri::command]
 pub async fn get_about_info() -> AboutInfo {
     build_about_info()
 }

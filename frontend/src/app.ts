@@ -31,6 +31,7 @@ interface WindowEventPayload<T> {
 
 export interface AppWindowLike {
   listen<T>(event: string, handler: (event: WindowEventPayload<T>) => void): Promise<() => void>;
+  setTitle(title: string): Promise<void>;
 }
 
 export interface AppDependencies {
@@ -162,13 +163,17 @@ export async function initializeApp(deps: AppDependencies) {
   }
 
   function updateWindowTitle() {
+    const title = !currentDocument
+      ? 'mdview'
+      : `mdview - ${getBaseName(currentDocument.path)}${isDirty ? '*' : ''}`;
+
+    doc.title = title;
+    void deps.currentWindow.setTitle(title);
+    void deps.invoke('set_window_title', { title });
+
     if (!currentDocument) {
-      doc.title = 'mdview';
       return;
     }
-
-    const dirtySuffix = isDirty ? '*' : '';
-    doc.title = `mdview - ${getBaseName(currentDocument.path)}${dirtySuffix}`;
   }
 
   function updateActionState() {

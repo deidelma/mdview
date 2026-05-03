@@ -54,12 +54,17 @@ function createDocument(path: string, source = '# Title'): MarkdownDocument {
 
 class FakeWindow implements AppWindowLike {
   private listeners = new Map<string, Array<(event: { payload: unknown }) => void>>();
+  title = 'mdview';
 
   async listen<T>(event: string, handler: (event: { payload: T }) => void) {
     const handlers = this.listeners.get(event) ?? [];
     handlers.push(handler as (event: { payload: unknown }) => void);
     this.listeners.set(event, handlers);
     return () => {};
+  }
+
+  async setTitle(title: string) {
+    this.title = title;
   }
 
   emit<T>(event: string, payload: T) {
@@ -87,6 +92,7 @@ describe('initializeApp', () => {
       if (command === 'get_zoom_factor') return 1;
       if (command === 'get_current_document') return initialDocument;
       if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
       if (command === 'parse_markdown') return { ...parsedDocument, raw_content: String(args?.source ?? '') };
       throw new Error(`Unexpected command ${command}`);
     });
@@ -120,8 +126,10 @@ describe('initializeApp', () => {
     await vi.advanceTimersByTimeAsync(200);
 
     expect(invoke).toHaveBeenCalledWith('parse_markdown', { path: '/docs/guide.md', source: '# Updated' });
+    expect(invoke).toHaveBeenCalledWith('set_window_title', { title: 'mdview - guide.md*' });
     expect((document.getElementById('btn-save') as HTMLButtonElement).disabled).toBe(false);
     expect(document.title).toBe('mdview - guide.md*');
+    expect(fakeWindow.title).toBe('mdview - guide.md*');
   });
 
   it('saves the edited document and clears dirty state', async () => {
@@ -134,6 +142,7 @@ describe('initializeApp', () => {
       if (command === 'get_zoom_factor') return 1;
       if (command === 'get_current_document') return initialDocument;
       if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
       if (command === 'parse_markdown') return { ...savedDocument, raw_content: String(args?.source ?? '') };
       if (command === 'save_document') return { ...savedDocument, raw_content: String(args?.source ?? '') };
       throw new Error(`Unexpected command ${command}`);
@@ -171,6 +180,7 @@ describe('initializeApp', () => {
     expect(invoke).toHaveBeenCalledWith('save_document', { path: '/docs/guide.md', source: '# Saved' });
     expect((document.getElementById('btn-save') as HTMLButtonElement).disabled).toBe(true);
     expect(document.title.endsWith('*')).toBe(false);
+    expect(fakeWindow.title).toBe('mdview - guide.md');
   });
 
   it('blocks opening another file when the dirty-state confirmation is rejected', async () => {
@@ -184,6 +194,7 @@ describe('initializeApp', () => {
       if (command === 'get_zoom_factor') return 1;
       if (command === 'get_current_document') return initialDocument;
       if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
       if (command === 'parse_markdown') return initialDocument;
       throw new Error(`Unexpected command ${command}`);
     });
@@ -224,6 +235,7 @@ describe('initializeApp', () => {
       if (command === 'get_zoom_factor') return 1;
       if (command === 'get_current_document') return initialDocument;
       if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
       throw new Error(`Unexpected command ${command}`);
     });
 
@@ -260,6 +272,7 @@ describe('initializeApp', () => {
       if (command === 'get_zoom_factor') return 1;
       if (command === 'get_current_document') return initialDocument;
       if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
       if (command === 'save_document') return { ...savedDocument, raw_content: String(args?.source ?? '') };
       throw new Error(`Unexpected command ${command}`);
     });
