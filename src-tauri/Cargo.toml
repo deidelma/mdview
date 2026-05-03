@@ -6,6 +6,7 @@ authors = ["David Eidelman"]
 license = "MIT"
 repository = ""
 edition = "2021"
+default-run = "mdview"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
