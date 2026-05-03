@@ -340,6 +340,7 @@ pub fn run(initial_file: Option<String>) {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_about_info,
+            commands::set_window_title,
             commands::open_document,
             commands::parse_markdown,
             commands::reload_document,
