@@ -113,6 +113,50 @@
         </div>
     </div>
 
+    <div id="preferences-overlay" class="preferences-overlay" hidden>
+        <div id="preferences-dialog" class="preferences-dialog" role="dialog" aria-modal="true" aria-labelledby="preferences-title">
+            <button id="preferences-close" class="about-close" type="button" aria-label="Close Preferences dialog">Close</button>
+            <div class="preferences-header">
+                <p class="preferences-eyebrow">Preferences</p>
+                <h2 id="preferences-title">Appearance</h2>
+                <p>Choose how mdview follows light and dark mode, then pick a palette that matches that appearance.</p>
+            </div>
+            <div class="preferences-grid">
+                <section class="preferences-section" aria-labelledby="preferences-mode-title">
+                    <h3 id="preferences-mode-title">Theme Mode</h3>
+                    <label class="preference-choice">
+                        <input id="preferences-mode-light" type="radio" name="theme-mode" value="light">
+                        <span>Light</span>
+                    </label>
+                    <label class="preference-choice">
+                        <input id="preferences-mode-dark" type="radio" name="theme-mode" value="dark">
+                        <span>Dark</span>
+                    </label>
+                    <label class="preference-choice">
+                        <input id="preferences-mode-auto" type="radio" name="theme-mode" value="auto">
+                        <span>Automatic</span>
+                    </label>
+                </section>
+                <section class="preferences-section" aria-labelledby="preferences-palette-title">
+                    <h3 id="preferences-palette-title">Palette</h3>
+                    <label class="preference-choice">
+                        <input id="preferences-palette-default" type="radio" name="theme-palette" value="default">
+                        <span>Default</span>
+                    </label>
+                    <label class="preference-choice">
+                        <input id="preferences-palette-intellij-light" type="radio" name="theme-palette" value="intellij-light">
+                        <span>IntelliJ Light</span>
+                    </label>
+                    <label class="preference-choice">
+                        <input id="preferences-palette-intellij-dark" type="radio" name="theme-palette" value="intellij-dark">
+                        <span>IntelliJ Dark</span>
+                    </label>
+                    <p id="preferences-palette-hint" class="preferences-hint"></p>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
 </body>
 

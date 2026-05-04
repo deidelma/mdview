@@ -95,14 +95,26 @@ mod tests {
 
     #[test]
     fn normalize_launch_arg_appends_md_to_suffixless_target() {
-        assert_eq!(normalize_launch_arg(OsString::from("hello")), OsString::from("hello.md"));
-        assert_eq!(normalize_launch_arg(OsString::from("notes/today")), OsString::from("notes/today.md"));
+        assert_eq!(
+            normalize_launch_arg(OsString::from("hello")),
+            OsString::from("hello.md")
+        );
+        assert_eq!(
+            normalize_launch_arg(OsString::from("notes/today")),
+            OsString::from("notes/today.md")
+        );
     }
 
     #[test]
     fn normalize_launch_arg_preserves_existing_suffix() {
-        assert_eq!(normalize_launch_arg(OsString::from("hello.md")), OsString::from("hello.md"));
-        assert_eq!(normalize_launch_arg(OsString::from("hello.txt")), OsString::from("hello.txt"));
+        assert_eq!(
+            normalize_launch_arg(OsString::from("hello.md")),
+            OsString::from("hello.md")
+        );
+        assert_eq!(
+            normalize_launch_arg(OsString::from("hello.txt")),
+            OsString::from("hello.txt")
+        );
     }
 
     #[test]
@@ -118,6 +130,8 @@ mod tests {
             candidates[1],
             Path::new("/tmp/mdview.app/Contents/MacOS/mdview")
         );
-        assert!(candidates.contains(&PathBuf::from("/Applications/mdview.app/Contents/MacOS/mdview")));
+        assert!(candidates.contains(&PathBuf::from(
+            "/Applications/mdview.app/Contents/MacOS/mdview"
+        )));
     }
 }

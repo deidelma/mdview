@@ -1,7 +1,9 @@
 import { initializeAbout, showAbout, type AboutInfo } from './ui/about';
 import { initializeLayout, type LayoutController } from './ui/layout';
+import { initializePreferences, type PreferencesController } from './ui/preferences';
 import { initializeSearch, type SearchController } from './ui/search';
 import { initializeToc, type TocController } from './ui/toc';
+import { applyTheme, createDefaultPreferences, sanitizePreferences, type AppPreferences, type ThemeMode, type ThemePalette } from './theme';
 import { getBaseName, resolveLocalMarkdownPath } from './utils/path';
 import type { MarkdownEditorController, MarkdownEditorOptions } from './ui/editor';
 
@@ -39,7 +41,8 @@ export interface AppDependencies {
   window: Window;
   currentWindow: AppWindowLike;
   invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>;
-  openFileDialog(): Promise<string | null>;
+  initialPreferences?: AppPreferences;
+  openFileDialog(options?: { defaultPath?: string }): Promise<string | null>;
   saveFileDialog(options: { defaultPath?: string }): Promise<string | null>;
   openExternalUrl(url: string): Promise<void>;
   createEditor?: (parent: HTMLElement, options: MarkdownEditorOptions) => MarkdownEditorController;
@@ -73,7 +76,8 @@ export async function initializeApp(deps: AppDependencies) {
 
   let currentDocument: MarkdownDocument | null = null;
   let savedDocument: MarkdownDocument | null = null;
-  let currentZoom = 1.0;
+  let preferences = sanitizePreferences(deps.initialPreferences ?? createDefaultPreferences());
+  let currentZoom = preferences.zoom_factor;
   let draftContent = '';
   let isDirty = false;
   let parseSequence = 0;
@@ -82,6 +86,7 @@ export async function initializeApp(deps: AppDependencies) {
   let editor: MarkdownEditorController | null = null;
   let editorFactoryPromise: Promise<MarkdownEditorFactory> | null = null;
   let isEditorLoading = false;
+  const systemThemeQuery = win.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
 
   const markdownContainer = queryRequiredElement<HTMLDivElement>(doc, 'markdown-container');
   const tocNav = queryRequiredElement<HTMLElement>(doc, 'toc-nav');
@@ -101,6 +106,15 @@ export async function initializeApp(deps: AppDependencies) {
   const editorContainer = queryRequiredElement<HTMLDivElement>(doc, 'editor-container');
 
   initializeAbout();
+  const preferencesController: PreferencesController = initializePreferences({
+    document: doc,
+    onThemeModeChange: (mode) => {
+      void updateThemeMode(mode);
+    },
+    onThemePaletteChange: (palette) => {
+      void updateThemePalette(palette);
+    },
+  });
 
   const layout: LayoutController = initializeLayout(doc);
   const search: SearchController = initializeSearch({ document: doc, getContainer: () => markdownContainer });
@@ -195,6 +209,51 @@ export async function initializeApp(deps: AppDependencies) {
     isDirty = nextDirty;
     updateWindowTitle();
     updateActionState();
+  }
+
+  function getDialogDefaultPath() {
+    return getCurrentPath() ?? preferences.working_directory ?? undefined;
+  }
+
+  function applyCurrentTheme() {
+    preferences = applyTheme(doc, preferences, systemThemeQuery?.matches ?? false);
+    preferencesController.update(preferences);
+  }
+
+  async function persistThemePreferences(nextPreferences: AppPreferences) {
+    const normalized = sanitizePreferences(nextPreferences);
+    const updates: Promise<unknown>[] = [];
+
+    if (normalized.theme_mode !== preferences.theme_mode) {
+      updates.push(deps.invoke<ThemeMode>('set_theme_mode', { mode: normalized.theme_mode }));
+    }
+
+    if (normalized.theme_palette !== preferences.theme_palette) {
+      updates.push(deps.invoke<ThemePalette>('set_theme_palette', { palette: normalized.theme_palette }));
+    }
+
+    try {
+      await Promise.all(updates);
+      preferences = normalized;
+      applyCurrentTheme();
+    } catch (error) {
+      win.alert(`Failed to update preferences: ${error}`);
+      preferencesController.update(preferences);
+    }
+  }
+
+  async function updateThemeMode(mode: ThemeMode) {
+    await persistThemePreferences({
+      ...preferences,
+      theme_mode: mode,
+    });
+  }
+
+  async function updateThemePalette(palette: ThemePalette) {
+    await persistThemePreferences({
+      ...preferences,
+      theme_palette: palette,
+    });
   }
 
   function applyZoom() {
@@ -343,7 +402,7 @@ export async function initializeApp(deps: AppDependencies) {
     }
 
     try {
-      const selectedPath = await deps.openFileDialog();
+      const selectedPath = await deps.openFileDialog({ defaultPath: getDialogDefaultPath() });
       if (!selectedPath) {
         return;
       }
@@ -375,7 +434,7 @@ export async function initializeApp(deps: AppDependencies) {
     }
 
     try {
-      const selectedPath = await deps.saveFileDialog({ defaultPath: getCurrentPath() ?? undefined });
+      const selectedPath = await deps.saveFileDialog({ defaultPath: getDialogDefaultPath() });
       if (!selectedPath) {
         return;
       }
@@ -458,6 +517,10 @@ export async function initializeApp(deps: AppDependencies) {
 
     const clamped = Math.max(0.5, Math.min(3.0, factor));
     currentZoom = await deps.invoke<number>('set_zoom_factor', { factor: clamped });
+    preferences = {
+      ...preferences,
+      zoom_factor: currentZoom,
+    };
     applyZoom();
   }
 
@@ -659,6 +722,9 @@ export async function initializeApp(deps: AppDependencies) {
   await deps.currentWindow.listen('menu-about', () => {
     void openAboutDialog();
   });
+  await deps.currentWindow.listen('menu-preferences', () => {
+    preferencesController.show(preferences);
+  });
   await deps.currentWindow.listen('menu-prev-file', () => {
     void navigateToHistory('navigate_previous', 'No previous file');
   });
@@ -667,11 +733,25 @@ export async function initializeApp(deps: AppDependencies) {
   });
 
   try {
-    currentZoom = await deps.invoke<number>('get_zoom_factor');
+    preferences = sanitizePreferences(deps.initialPreferences ?? await deps.invoke<AppPreferences>('get_preferences'));
+    currentZoom = preferences.zoom_factor;
   } catch {
-    currentZoom = 1.0;
+    currentZoom = await deps.invoke<number>('get_zoom_factor').catch(() => 1.0);
+    preferences = {
+      ...preferences,
+      zoom_factor: currentZoom,
+    };
   }
+  applyCurrentTheme();
   applyZoom();
+
+  const handleSystemThemeChange = () => {
+    if (preferences.theme_mode === 'auto') {
+      applyCurrentTheme();
+    }
+  };
+
+  systemThemeQuery?.addEventListener?.('change', handleSystemThemeChange);
 
   try {
     const documentToLoad = await deps.invoke<MarkdownDocument | null>('get_current_document');
@@ -688,6 +768,7 @@ export async function initializeApp(deps: AppDependencies) {
   return {
     destroy() {
       clearScheduledParse();
+      systemThemeQuery?.removeEventListener?.('change', handleSystemThemeChange);
       editor?.destroy();
     },
   };

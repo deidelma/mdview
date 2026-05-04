@@ -121,7 +121,10 @@ mod tests {
             markdown.display().to_string(),
         ];
 
-        assert_eq!(select_initial_file(&files), Some(markdown.display().to_string()));
+        assert_eq!(
+            select_initial_file(&files),
+            Some(markdown.display().to_string())
+        );
     }
 
     #[test]
