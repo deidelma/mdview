@@ -23,6 +23,10 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .accelerator("CmdOrCtrl+Shift+S")
         .build(app)?;
 
+    let preferences = MenuItemBuilder::with_id("preferences", "Preferences...")
+        .accelerator("CmdOrCtrl+,")
+        .build(app)?;
+
     let prev_file = MenuItemBuilder::with_id("prev-file", "Previous File")
         .accelerator("CmdOrCtrl+Left")
         .build(app)?;
@@ -96,6 +100,8 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
             let select_all = tauri::menu::PredefinedMenuItem::select_all(app, Some("Select All"))?;
 
             SubmenuBuilder::new(app, "Edit")
+                .item(&preferences)
+                .separator()
                 .item(&copy)
                 .item(&select_all)
                 .separator()
@@ -107,6 +113,8 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         #[cfg(not(target_os = "macos"))]
         {
             SubmenuBuilder::new(app, "Edit")
+                .item(&preferences)
+                .separator()
                 .item(&copy)
                 .separator()
                 .item(&search)
@@ -150,6 +158,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
 
             let app_menu = SubmenuBuilder::new(app, "mdview")
                 .item(&about)
+                .item(&preferences)
                 .separator()
                 .item(&services)
                 .separator()
@@ -258,6 +267,11 @@ pub fn setup_menu_handlers<R: Runtime>(window: &WebviewWindow<R>) {
             "about" => {
                 if let Err(e) = window.emit("menu-about", ()) {
                     eprintln!("Failed to emit menu-about event: {}", e);
+                }
+            }
+            "preferences" => {
+                if let Err(e) = window.emit("menu-preferences", ()) {
+                    eprintln!("Failed to emit menu-preferences event: {}", e);
                 }
             }
             _ => {

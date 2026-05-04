@@ -1,6 +1,6 @@
 [package]
 name = "mdview"
-version = "0.16.1"
+version = "0.16.2"
 description = "A lightweight cross-platform Markdown viewer"
 authors = ["David Eidelman"]
 license = "MIT"

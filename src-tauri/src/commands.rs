@@ -1,4 +1,7 @@
 use crate::md::{loader::MdLoadError, parser, MarkdownDocument};
+use crate::settings::{
+    clamp_zoom_factor, normalize_working_directory, AppPreferences, ThemeMode, ThemePalette,
+};
 use crate::state::AppState;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
@@ -59,6 +62,40 @@ fn persist_file_history(app: &AppHandle, window_label: &str, state: &AppState) {
     }
 }
 
+fn persist_settings(app: &AppHandle, window_label: &str, state: &AppState) {
+    let Some(config_dir) = state.config_dir.as_ref() else {
+        return;
+    };
+
+    if let Err(error) = state.persisted_state().save(config_dir) {
+        eprintln!("Failed to save settings: {}", error);
+        if let Some(window) = app.get_webview_window(window_label) {
+            use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+            let _ = window
+                .dialog()
+                .message(&format!("Failed to save settings: {}", error))
+                .kind(MessageDialogKind::Error)
+                .blocking_show();
+        }
+    }
+}
+
+fn update_working_directory_from_path(
+    app: &AppHandle,
+    state: &AppState,
+    window_label: &str,
+    path: &str,
+) {
+    let Some(working_directory) = normalize_working_directory(path) else {
+        return;
+    };
+
+    state.update_preferences(|preferences| {
+        preferences.working_directory = Some(working_directory);
+    });
+    persist_settings(app, window_label, state);
+}
+
 fn document_from_source(path: String, raw_content: String) -> MarkdownDocument {
     MarkdownDocument::from_source(path, raw_content)
 }
@@ -74,6 +111,7 @@ pub(crate) fn create_unsaved_document_into_state(
 ) -> MarkdownDocument {
     let document = unsaved_document_from_source(path.to_string(), String::new());
     state.set_current_document(window_label, document.clone());
+    state.update_window_document_path(window_label, None);
     document
 }
 
@@ -93,7 +131,9 @@ pub(crate) fn save_document_into_state(
         let mut history = state.file_history.lock().unwrap();
         history.add(path.to_string());
     }
+    state.update_window_document_path(window_label, Some(path.to_string()));
     persist_file_history(app, window_label, state);
+    update_working_directory_from_path(app, state, window_label, path);
 
     Ok(document)
 }
@@ -111,7 +151,9 @@ pub(crate) fn load_document_into_state(
         let mut history = state.file_history.lock().unwrap();
         history.add(path.to_string());
     }
+    state.update_window_document_path(window_label, Some(path.to_string()));
     persist_file_history(app, window_label, state);
+    update_working_directory_from_path(app, state, window_label, path);
 
     Ok(document)
 }
@@ -195,11 +237,12 @@ pub async fn reload_document(
     window: WebviewWindow,
     state: State<'_, AppState>,
 ) -> Result<MarkdownDocument, CommandError> {
-    let current_document = state
-        .get_current_document(window.label())
-        .ok_or_else(|| CommandError {
-            message: "No document is currently loaded".to_string(),
-        })?;
+    let current_document =
+        state
+            .get_current_document(window.label())
+            .ok_or_else(|| CommandError {
+                message: "No document is currently loaded".to_string(),
+            })?;
 
     if !current_document.is_saved_to_disk {
         return Err(CommandError {
@@ -214,6 +257,7 @@ pub async fn reload_document(
 
     // Update state
     state.set_current_document(window.label(), document.clone());
+    state.update_window_document_path(window.label(), Some(path.clone()));
 
     Ok(document)
 }
@@ -255,8 +299,9 @@ pub async fn set_zoom_factor(factor: f64, state: State<'_, AppState>) -> Result<
         });
     }
 
-    let mut zoom = state.zoom_factor.lock().unwrap();
-    *zoom = factor;
+    state.update_preferences(|preferences| {
+        preferences.zoom_factor = clamp_zoom_factor(factor);
+    });
 
     Ok(factor)
 }
@@ -272,8 +317,40 @@ pub async fn set_zoom_factor(factor: f64, state: State<'_, AppState>) -> Result<
 /// * `Result<f64, CommandError>` - The current zoom factor
 #[tauri::command]
 pub async fn get_zoom_factor(state: State<'_, AppState>) -> Result<f64, CommandError> {
-    let zoom = state.zoom_factor.lock().unwrap();
-    Ok(*zoom)
+    Ok(state.zoom_factor())
+}
+
+#[tauri::command]
+pub async fn get_preferences(state: State<'_, AppState>) -> Result<AppPreferences, CommandError> {
+    Ok(state.preferences.lock().unwrap().clone())
+}
+
+#[tauri::command]
+pub async fn set_theme_mode(
+    mode: ThemeMode,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ThemeMode, CommandError> {
+    state.update_preferences(|preferences| {
+        preferences.theme_mode = mode;
+    });
+    persist_settings(&app, window.label(), state.inner());
+    Ok(mode)
+}
+
+#[tauri::command]
+pub async fn set_theme_palette(
+    palette: ThemePalette,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ThemePalette, CommandError> {
+    state.update_preferences(|preferences| {
+        preferences.theme_palette = palette;
+    });
+    persist_settings(&app, window.label(), state.inner());
+    Ok(palette)
 }
 
 /// Gets the currently loaded document if any.
@@ -371,6 +448,7 @@ pub async fn navigate_previous(
 
             // Update state
             state.set_current_document(window.label(), document.clone());
+            state.update_window_document_path(window.label(), Some(p.clone()));
 
             // Save history (position changed)
             persist_file_history(&app, window.label(), state.inner());
@@ -425,6 +503,7 @@ pub async fn navigate_next(
 
             // Update state
             state.set_current_document(window.label(), document.clone());
+            state.update_window_document_path(window.label(), Some(p.clone()));
 
             // Save history (position changed)
             persist_file_history(&app, window.label(), state.inner());

@@ -1,6 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeApp, type AppDependencies, type AppWindowLike, type MarkdownDocument } from './app';
 import type { MarkdownEditorController, MarkdownEditorOptions } from './ui/editor';
+import type { AppPreferences } from './theme';
+
+const defaultPreferences: AppPreferences = {
+  theme_mode: 'light',
+  theme_palette: 'default',
+  zoom_factor: 1,
+  working_directory: null,
+};
+
+function installMatchMedia(matches = false) {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const mediaQuery = {
+    matches,
+    media: '(prefers-color-scheme: dark)',
+    onchange: null,
+    addEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => {
+      listeners.add(listener);
+    },
+    removeEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => {
+      listeners.delete(listener);
+    },
+    addListener: (listener: (event: MediaQueryListEvent) => void) => {
+      listeners.add(listener);
+    },
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => {
+      listeners.delete(listener);
+    },
+    dispatch(nextMatches: boolean) {
+      mediaQuery.matches = nextMatches;
+      const event = { matches: nextMatches, media: mediaQuery.media } as MediaQueryListEvent;
+      for (const listener of listeners) {
+        listener(event);
+      }
+    },
+  } as MediaQueryList & { dispatch(nextMatches: boolean): void };
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn(() => mediaQuery),
+  });
+
+  return mediaQuery;
+}
 
 function createTestMarkup() {
   document.body.innerHTML = `
@@ -38,6 +81,7 @@ function createTestMarkup() {
         </div>
       </div>
       <div id="about-overlay" hidden><div id="about-dialog"><button id="about-close"></button><div id="about-version"></div><div id="about-description"></div><div id="about-copyright"></div><button id="about-tab-license"></button><button id="about-tab-third-party"></button><div id="about-text"></div></div></div>
+      <div id="preferences-overlay" hidden><div id="preferences-dialog"><button id="preferences-close"></button><div id="preferences-palette-hint"></div><label><input id="preferences-mode-light" type="radio" name="theme-mode" value="light" /></label><label><input id="preferences-mode-dark" type="radio" name="theme-mode" value="dark" /></label><label><input id="preferences-mode-auto" type="radio" name="theme-mode" value="auto" /></label><label><input id="preferences-palette-default" type="radio" name="theme-palette" value="default" /></label><label><input id="preferences-palette-intellij-light" type="radio" name="theme-palette" value="intellij-light" /></label><label><input id="preferences-palette-intellij-dark" type="radio" name="theme-palette" value="intellij-dark" /></label></div></div>
     </div>
   `;
 }
@@ -78,6 +122,7 @@ describe('initializeApp', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     createTestMarkup();
+    installMatchMedia(false);
     Object.defineProperty(window, 'confirm', { value: vi.fn(() => true), configurable: true });
     Object.defineProperty(window, 'alert', { value: vi.fn(), configurable: true });
   });
@@ -101,6 +146,7 @@ describe('initializeApp', () => {
       document,
       window,
       currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
       invoke,
       openFileDialog: vi.fn(async () => null),
       saveFileDialog: vi.fn(async () => null),
@@ -152,6 +198,7 @@ describe('initializeApp', () => {
       document,
       window,
       currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
       invoke,
       openFileDialog: vi.fn(async () => null),
       saveFileDialog: vi.fn(async () => null),
@@ -203,6 +250,7 @@ describe('initializeApp', () => {
       document,
       window,
       currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
       invoke,
       openFileDialog,
       saveFileDialog: vi.fn(async () => null),
@@ -243,6 +291,7 @@ describe('initializeApp', () => {
       document,
       window,
       currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
       invoke,
       openFileDialog: vi.fn(async () => null),
       saveFileDialog: vi.fn(async () => null),
@@ -281,6 +330,7 @@ describe('initializeApp', () => {
       document,
       window,
       currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
       invoke,
       openFileDialog: vi.fn(async () => null),
       saveFileDialog: vi.fn(async () => null),
@@ -298,5 +348,65 @@ describe('initializeApp', () => {
     await Promise.resolve();
 
     expect(invoke).toHaveBeenCalledWith('save_document', { path: '/docs/draft.md', source: '' });
+  });
+
+  it('applies automatic dark theme from OS preference at startup', async () => {
+    installMatchMedia(true);
+    const fakeWindow = new FakeWindow();
+
+    const invoke = vi.fn(async (command: string) => {
+      if (command === 'get_current_document') return null;
+      if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
+      throw new Error(`Unexpected command ${command}`);
+    });
+
+    await initializeApp({
+      document,
+      window,
+      currentWindow: fakeWindow,
+      initialPreferences: { ...defaultPreferences, theme_mode: 'auto' },
+      invoke,
+      openFileDialog: vi.fn(async () => null),
+      saveFileDialog: vi.fn(async () => null),
+      openExternalUrl: vi.fn(async () => undefined),
+    });
+
+    expect(document.documentElement.dataset.themeAppearance).toBe('dark');
+    expect(document.documentElement.dataset.themePalette).toBe('default');
+  });
+
+  it('opens preferences from the menu event and persists theme changes', async () => {
+    const fakeWindow = new FakeWindow();
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === 'get_current_document') return null;
+      if (command === 'get_navigation_state') return { can_go_back: false, can_go_forward: false };
+      if (command === 'set_window_title') return undefined;
+      if (command === 'set_theme_mode') return args?.mode;
+      throw new Error(`Unexpected command ${command}`);
+    });
+
+    await initializeApp({
+      document,
+      window,
+      currentWindow: fakeWindow,
+      initialPreferences: defaultPreferences,
+      invoke,
+      openFileDialog: vi.fn(async () => null),
+      saveFileDialog: vi.fn(async () => null),
+      openExternalUrl: vi.fn(async () => undefined),
+    });
+
+    fakeWindow.emit('menu-preferences', undefined);
+    expect((document.getElementById('preferences-overlay') as HTMLDivElement).hidden).toBe(false);
+
+    const darkInput = document.getElementById('preferences-mode-dark') as HTMLInputElement;
+    darkInput.checked = true;
+    darkInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(invoke).toHaveBeenCalledWith('set_theme_mode', { mode: 'dark' });
+    expect(document.documentElement.dataset.themeAppearance).toBe('dark');
   });
 });

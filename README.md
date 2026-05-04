@@ -1,14 +1,19 @@
 # mdview
 
-A lightweight cross-platform Markdown viewer built with Rust and Tauri.
+A lightweight cross-platform Markdown viewer and editor built with Rust and Tauri.
+
+Release-specific summaries belong in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## Overview
 
-**mdview** is a fast, native Markdown viewer that provides:
+**mdview** is a fast, native Markdown viewer and editor that provides:
 - Clean, distraction-free reading experience
+- Split-view editing with live preview
 - Table of Contents (TOC) navigation
 - Full-text search with highlighting
-- Zoom controls
+- Preferences for theme mode and palette selection
+- Persistent zoom controls
+- Session restore for open windows and documents
 - Native OS menus (macOS/Windows/Linux)
 - External link handling
 - Copy functionality
@@ -20,10 +25,14 @@ using LLMs.  The plan was created using GPT5.1 from OpenAI. The code was primari
 
 - **Native Performance**: Built with Rust and Tauri for minimal resource usage
 - **Cross-Platform**: Runs on macOS, Windows, and Linux
+- **Read And Edit**: Toggle between preview-only and split edit/preview modes with live Markdown rendering
 - **TOC Navigation**: Automatically generated table of contents from Markdown headings
 - **Search**: Find text within documents with next/previous navigation
-- **Zoom**: Adjust text size for comfortable reading
-- **Native Menus**: OS-native menu system integration
+- **Preferences And Themes**: Choose light, dark, or automatic appearance and switch between Default, IntelliJ Light, and IntelliJ Dark palettes
+- **Persistent Zoom**: Zoom level is saved and restored across launches
+- **Session Restore**: Reopen prior windows, geometry, and disk-backed documents when launching without a file argument
+- **Working Directory Memory**: Open and save dialogs reuse the most recent document directory when possible
+- **Native Menus**: OS-native menu system integration, including a Preferences entry with `Cmd+,` on macOS
 
 ## Installation
 
@@ -69,24 +78,41 @@ mdview path/to/document.md
 mdview
 ```
 
+Launching `mdview` without a file restores the previous session, including open windows and their disk-backed documents. Launching with a file opens that file instead of restoring the previous session.
+
 On desktop platforms, you can also drop a Markdown file onto the `mdview` executable to open it. If `mdview` is already running, the dropped file opens in the existing window. When multiple files are dropped onto the executable at once, the first file is opened.
 
 You can also drag Markdown files onto an already open mdview window. Each dropped Markdown file opens in its own new viewer window, leaving the original window unchanged.
 
+Use Preferences to control appearance mode and palette:
+
+- **Theme Mode**: Light, Dark, Automatic
+- **Palettes**: Default, IntelliJ Light, IntelliJ Dark
+
+Automatic mode follows the OS light/dark preference and uses the Default palette so appearance changes remain consistent.
+
 ### Keyboard Shortcuts
 
 - **Cmd/Ctrl+O**: Open file
+- **Cmd/Ctrl+S**: Save current file
+- **Cmd/Ctrl+Shift+S**: Save current file as
 - **Cmd/Ctrl+R**: Reload current file
 - **Cmd/Ctrl+F**: Search
+- **Cmd/Ctrl+E**: Toggle edit mode
 - **Cmd/Ctrl++**: Zoom in
 - **Cmd/Ctrl+-**: Zoom out
 - **Cmd/Ctrl+0**: Reset zoom
-- **Cmd/Ctrl+Q**: Quit (macOS)
+- **Cmd/Ctrl+,**: Open Preferences
+- **Cmd/Ctrl+Left**: Previous file in history
+- **Cmd/Ctrl+Right**: Next file in history
+- **Cmd/Ctrl+Q**: Quit
 
 ### Features
 
 - Click any heading in the Table of Contents to jump to that section
 - Use the search bar to find text (supports next/previous navigation)
+- Toggle edit mode to update Markdown with a live preview beside the editor
+- Save unsaved drafts directly to the launch path or use Save As to choose a new file name
 - External links (http://, https://, www.) open in your system browser
 - Internal links (#anchors) scroll smoothly to the target section
 
