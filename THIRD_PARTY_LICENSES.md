@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This document lists all third-party dependencies used in **mdview** and their respective licenses.
+This document lists the current direct third-party dependencies used in **mdview** and their respective licenses.
 
 ## Rust Dependencies (Backend)
 
@@ -8,37 +8,49 @@ This document lists all third-party dependencies used in **mdview** and their re
 
 | Component | Version | License | Source |
 |-----------|---------|---------|--------|
-| tauri | 2.9.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
-| tauri-plugin-dialog | 2.4.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
-| tauri-plugin-shell | 2.3.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| tauri | 2.10.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
+| tauri-plugin-dialog | 2.7.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| tauri-plugin-shell | 2.3.5 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| tauri-plugin-single-instance | 2.4.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | serde | 1.0.228 | MIT OR Apache-2.0 | https://github.com/serde-rs/serde |
-| serde_json | 1.0.145 | MIT OR Apache-2.0 | https://github.com/serde-rs/json |
+| serde_json | 1.0.149 | MIT OR Apache-2.0 | https://github.com/serde-rs/json |
 | comrak | 0.30.0 | BSD-2-Clause | https://github.com/kivikakk/comrak |
-| clap | 4.5.51 | MIT OR Apache-2.0 | https://github.com/clap-rs/clap |
-| thiserror | 2.0.17 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
+| clap | 4.6.1 | MIT OR Apache-2.0 | https://github.com/clap-rs/clap |
+| thiserror | 1.0.69 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
 
 ### Build Dependencies
 
 | Component | Version | License | Source |
 |-----------|---------|---------|--------|
-| tauri-build | 2.5.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
+| tauri-build | 2.5.6 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 
 ### Development Dependencies
 
 | Component | Version | License | Source |
 |-----------|---------|---------|--------|
-| tempfile | 3.23.0 | MIT OR Apache-2.0 | https://github.com/Stebalien/tempfile |
-| tokio | 1.48.0 | MIT | https://github.com/tokio-rs/tokio |
+| tempfile | 3.27.0 | MIT OR Apache-2.0 | https://github.com/Stebalien/tempfile |
+| tokio | 1.52.1 | MIT | https://github.com/tokio-rs/tokio |
 
 ## JavaScript/TypeScript Dependencies (Frontend)
 
 | Component | Version | License | Source |
 |-----------|---------|---------|--------|
-| @tauri-apps/api | 2.9.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
-| @tauri-apps/plugin-dialog | 2.4.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| @codemirror/lang-markdown | 6.5.0 | MIT | https://github.com/codemirror/lang-markdown |
+| @codemirror/state | 6.6.0 | MIT | https://github.com/codemirror/state |
+| @codemirror/view | 6.41.1 | MIT | https://github.com/codemirror/view |
+| codemirror | 6.0.2 | MIT | https://github.com/codemirror/dev |
+| @tauri-apps/api | 2.10.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
+| @tauri-apps/plugin-dialog | 2.7.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | @tauri-apps/plugin-shell | 2.3.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+
+### Development Dependencies
+
+| Component | Version | License | Source |
+|-----------|---------|---------|--------|
+| jsdom | 26.1.0 | MIT | https://github.com/jsdom/jsdom |
 | TypeScript | 5.9.3 | Apache-2.0 | https://github.com/microsoft/TypeScript |
 | Vite | 5.4.21 | MIT | https://github.com/vitejs/vite |
+| Vitest | 2.1.9 | MIT | https://github.com/vitest-dev/vitest |
 
 ---
 
@@ -280,14 +292,16 @@ SOFTWARE.
 
 ## Notes
 
-- All dependencies use OSI-approved open source licenses compatible with mdview's MIT license.
-- Most dependencies offer dual licensing (Apache-2.0 OR MIT), providing flexibility in license choice.
+- All listed direct dependencies use OSI-approved open source licenses compatible with mdview's MIT license.
+- Most Tauri and Serde ecosystem dependencies offer dual licensing (Apache-2.0 OR MIT), providing flexibility in license choice.
+- The CodeMirror editor packages, jsdom, Vite, and Vitest use the MIT license.
 - The comrak markdown parser uses the BSD-2-Clause license.
 - For exact dependency versions and complete transitive dependency trees, see:
-  - Rust: `Cargo.lock` in `src-tauri/`
+   - Rust: `Cargo.lock` in the repository root
   - Frontend: `package-lock.json` in `frontend/`
-- To generate a complete list of all transitive dependencies with licenses:
-  - Rust: `cargo tree` (shows dependency tree)
-  - Frontend: `npm list` (shows dependency tree)
+- This file tracks direct dependencies only. Transitive dependencies are not enumerated here.
+- To inspect the complete transitive dependency tree:
+   - Rust: `cargo tree`
+   - Frontend: `npm list`
 
-**Last Updated**: April 24, 2026
+**Last Updated**: May 3, 2026
