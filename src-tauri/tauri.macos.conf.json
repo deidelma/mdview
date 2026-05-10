@@ -1,13 +1,6 @@
 {
   "bundle": {
     "targets": ["app", "dmg"],
-    "fileAssociations": [
-      {
-        "ext": ["md", "markdown", "mdown", "mkd", "mdx"],
-        "name": "Markdown document",
-        "role": "Viewer"
-      }
-    ],
     "macOS": {
       "bundleName": "mdview",
       "minimumSystemVersion": "10.13",
